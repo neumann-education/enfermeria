@@ -1,0 +1,36 @@
+export interface DatosClinicosResponse {
+  id: string
+  type: string
+  period: string
+  configId: string
+  registeredAt: string
+  programa: string
+  ciclo: string
+  seccion: string
+  nombresApellidos: string
+  fechaNacimiento: string
+  edad: string
+  sexo: string
+  dni: string
+  celular: string
+  domicilio: string
+  nacionalidad: string
+  tipoSeguro: string
+  contactoNombres: string
+  contactoCelular: string
+  parentesco: string
+  padeceEnfermedad: boolean
+  enfermedadNombre: string
+  discapacidad: boolean
+  discapacidadNombre: string
+  carnetConadis: boolean
+  tratamientoMedico: boolean
+  tratamientoNombre: string
+  alergico: boolean
+  alergicoNombre: string
+  vacunaCovid: boolean
+  dosisCovid: string
+  embarazada: boolean
+  fpp: string
+  semanasGestacion: string
+}

@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+
+<html lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-bright": "#fef7ff",
+                        "error-container": "#ffdad6",
+                        "on-tertiary-fixed": "#00201a",
+                        "secondary-container": "#cfe6f2",
+                        "on-surface-variant": "#4a4453",
+                        "on-error": "#ffffff",
+                        "secondary-fixed-dim": "#b4cad6",
+                        "inverse-on-surface": "#f6eef9",
+                        "primary": "#4f1c9d",
+                        "on-secondary": "#ffffff",
+                        "on-primary-container": "#d8c1ff",
+                        "surface-container-high": "#ede6f1",
+                        "error": "#ba1a1a",
+                        "tertiary": "#00483d",
+                        "surface-tint": "#7043bf",
+                        "on-background": "#1d1a22",
+                        "surface-variant": "#e7e0eb",
+                        "on-secondary-container": "#526772",
+                        "surface": "#fef7ff",
+                        "background": "#fef7ff",
+                        "secondary-fixed": "#cfe6f2",
+                        "primary-fixed": "#ebddff",
+                        "outline-variant": "#ccc3d5",
+                        "on-tertiary-fixed-variant": "#005145",
+                        "on-primary-fixed-variant": "#5727a6",
+                        "primary-container": "#673ab6",
+                        "on-secondary-fixed-variant": "#354a53",
+                        "tertiary-fixed": "#68fadd",
+                        "inverse-surface": "#322f37",
+                        "on-primary": "#ffffff",
+                        "surface-dim": "#dfd7e3",
+                        "secondary": "#4c616c",
+                        "on-secondary-fixed": "#071e27",
+                        "surface-container": "#f3ebf6",
+                        "on-primary-fixed": "#260059",
+                        "surface-container-lowest": "#ffffff",
+                        "primary-fixed-dim": "#d3bbff",
+                        "inverse-primary": "#d3bbff",
+                        "tertiary-container": "#006254",
+                        "outline": "#7b7484",
+                        "on-tertiary": "#ffffff",
+                        "on-surface": "#1d1a22",
+                        "on-tertiary-container": "#4ce3c7",
+                        "surface-container-highest": "#e7e0eb",
+                        "surface-container-low": "#f9f1fc",
+                        "tertiary-fixed-dim": "#44ddc1",
+                        "on-error-container": "#93000a"
+                    },
+                    fontFamily: {
+                        "headline": ["Manrope"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3, .headline { font-family: 'Manrope', sans-serif; }
+        .glass-header {
+            background: rgba(103, 58, 182, 0.1);
+            backdrop-filter: blur(12px);
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface flex min-h-screen">
+<!-- SideNavBar Component -->
+<aside class="hidden md:flex flex-col h-screen w-72 bg-surface-container-low sticky top-0 border-r-0 p-4 gap-2">
+<div class="flex items-center gap-3 px-2 py-4 mb-4">
+<div class="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white">
+<span class="material-symbols-outlined" data-icon="medical_services">medical_services</span>
+</div>
+<div>
+<div class="text-lg font-black text-primary tracking-tight">Gesti\u00f3n de T\u00f3pico</div>
+<div class="text-xs font-medium text-on-surface-variant opacity-70">Instituto Neumann</div>
+</div>
+</div>
+<nav class="flex flex-col gap-1 flex-1">
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high hover:translate-x-1 transition-all rounded-xl font-medium" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high hover:translate-x-1 transition-all rounded-xl font-medium" href="#">
+<span class="material-symbols-outlined" data-icon="medical_services">medical_services</span>
+<span>Registro de Atenci\u00f3n</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high hover:translate-x-1 transition-all rounded-xl font-medium" href="#">
+<span class="material-symbols-outlined" data-icon="history_edu">history_edu</span>
+<span>Historial de Consultas</span>
+</a>
+<!-- Active State: Reportes -->
+<a class="flex items-center gap-3 px-4 py-3 bg-primary-container text-on-primary-container rounded-xl font-bold transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="analytics" style="font-variation-settings: 'FILL' 1;">analytics</span>
+<span>Reportes</span>
+</a>
+</nav>
+<div class="mt-auto flex flex-col gap-1 border-t border-outline-variant/10 pt-4">
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-xl font-medium transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+<span>Ayuda</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-error hover:bg-error-container/20 rounded-xl font-medium transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="logout">logout</span>
+<span>Cerrar Sesi\u00f3n</span>
+</a>
+</div>
+</aside>
+<main class="flex-1 flex flex-col min-w-0 bg-surface">
+<!-- TopAppBar Component -->
+<header class="sticky top-0 z-50 bg-surface-container-low/80 backdrop-blur-md px-6 py-3 flex justify-between items-center w-full shadow-sm">
+<div class="flex items-center gap-4 flex-1">
+<div class="relative w-full max-w-md">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm" data-icon="search">search</span>
+<input class="w-full pl-10 pr-4 py-2 bg-surface-container-high border-none rounded-full text-sm focus:ring-2 focus:ring-primary/20 transition-all" placeholder="Buscar reporte..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-2 text-on-surface-variant hover:bg-primary-container/20 rounded-full transition-colors relative">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<button class="p-2 text-on-surface-variant hover:bg-primary-container/20 rounded-full transition-colors">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+<div class="ml-2 w-8 h-8 rounded-full overflow-hidden border-2 border-primary-fixed">
+<img alt="Doctor Profile" class="w-full h-full object-cover" data-alt="professional medical staff portrait with a friendly expression in a clinical setting with soft natural lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAatTK8asbI12u4PODLhTfA59B_RnDYF9mgakXwW9RTXBN5qNPHCItHC_JI2q6BFNPx7-MyVCPFMBv2p6Aa6bdaU_wC86AZ7Q2kLdX7fvogIqP9DSpfLxv1Ilw7mDdpjoL9hqQ0br6CKhe6uMXiNcXsndvObQwwAJ67uAZONn2-WPhhALbAQiCr9zWBRboUPxhrypz_WCaiGjzR6d0Y_5FSr3NQT7PqqYbxlqiAIZ6FU7_k5LNzNAJrsATUkvDmJHSC4QkunvVF6n8"/>
+</div>
+</div>
+</header>
+<div class="p-6 lg:p-10 space-y-8">
+<!-- Header Section -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div>
+<h1 class="text-3xl font-extrabold text-on-surface tracking-tight font-headline">Panel de Estadísticas</h1>
+<p class="text-on-surface-variant font-medium mt-1">Análisis detallado de atenciones médicas - Gestión 2024</p>
+</div>
+<div class="flex gap-3">
+<button class="flex items-center gap-2 px-5 py-2.5 bg-surface-container-highest text-on-surface font-semibold rounded-xl hover:bg-surface-container-high transition-all active:scale-95">
+<span class="material-symbols-outlined text-[20px]" data-icon="ios_share">ios_share</span>
+                        Compartir
+                    </button>
+<button class="flex items-center gap-2 px-5 py-2.5 bg-primary text-white font-semibold rounded-xl hover:brightness-110 shadow-lg shadow-primary/20 transition-all active:scale-95">
+<span class="material-symbols-outlined text-[20px]" data-icon="download">download</span>
+                        Exportar Reporte
+                    </button>
+</div>
+</div>
+<!-- 1. Metrics Grid -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Metric 1 -->
+<div class="bg-surface-container-lowest p-6 rounded-full border border-outline-variant/10 flex items-center gap-5">
+<div class="w-14 h-14 rounded-2xl bg-primary-fixed flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-3xl" data-icon="groups" style="font-variation-settings: 'FILL' 1;">groups</span>
+</div>
+<div>
+<p class="text-sm font-bold text-on-surface-variant uppercase tracking-wider">Total Atenciones</p>
+<p class="text-3xl font-extrabold text-on-surface font-headline">1,284</p>
+<p class="text-xs font-semibold text-tertiary mt-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="trending_up">trending_up</span>
+                            +12% este mes
+                        </p>
+</div>
+</div>
+<!-- Metric 2 -->
+<div class="bg-surface-container-lowest p-6 rounded-full border border-outline-variant/10 flex items-center gap-5">
+<div class="w-14 h-14 rounded-2xl bg-tertiary-fixed flex items-center justify-center text-on-tertiary-fixed-variant">
+<span class="material-symbols-outlined text-3xl" data-icon="task_alt" style="font-variation-settings: 'FILL' 1;">task_alt</span>
+</div>
+<div>
+<p class="text-sm font-bold text-on-surface-variant uppercase tracking-wider">Casos Cerrados</p>
+<p class="text-3xl font-extrabold text-on-surface font-headline">94.2%</p>
+<p class="text-xs font-semibold text-tertiary mt-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="check_circle">check_circle</span>
+                            Alta eficiencia
+                        </p>
+</div>
+</div>
+<!-- Metric 3 -->
+<div class="bg-surface-container-lowest p-6 rounded-full border border-outline-variant/10 flex items-center gap-5">
+<div class="w-14 h-14 rounded-2xl bg-secondary-fixed flex items-center justify-center text-on-secondary-fixed-variant">
+<span class="material-symbols-outlined text-3xl" data-icon="timer" style="font-variation-settings: 'FILL' 1;">timer</span>
+</div>
+<div>
+<p class="text-sm font-bold text-on-surface-variant uppercase tracking-wider">Tiempo Promedio</p>
+<p class="text-3xl font-extrabold text-on-surface font-headline">12.5 min</p>
+<p class="text-xs font-semibold text-secondary mt-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="schedule">schedule</span>
+                            Optimizado
+                        </p>
+</div>
+</div>
+</div>
+<!-- Main Reports Bento Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+<!-- 3. Line Chart: Evolution -->
+<div class="lg:col-span-8 bg-surface-container-lowest p-8 rounded-full border border-outline-variant/10">
+<div class="flex justify-between items-start mb-8">
+<div>
+<h3 class="text-xl font-bold font-headline">Evolución de Atenciones</h3>
+<p class="text-sm text-on-surface-variant">Frecuencia semanal de consultas médicas</p>
+</div>
+<select class="bg-surface-container-high border-none rounded-xl text-sm font-medium focus:ring-primary/20">
+<option>Últimos 6 meses</option>
+<option>Último año</option>
+</select>
+</div>
+<!-- SVG Line Chart Mock -->
+<div class="relative h-64 w-full mt-4">
+<svg class="w-full h-full" viewbox="0 0 800 200">
+<defs>
+<lineargradient id="lineGrad" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="#4f1c9d" stop-opacity="0.2"></stop>
+<stop offset="100%" stop-color="#4f1c9d" stop-opacity="0"></stop>
+</lineargradient>
+</defs>
+<path d="M0,150 Q100,140 200,100 T400,120 T600,60 T800,80 L800,200 L0,200 Z" fill="url(#lineGrad)"></path>
+<path d="M0,150 Q100,140 200,100 T400,120 T600,60 T800,80" fill="none" stroke="#4f1c9d" stroke-linecap="round" stroke-width="4"></path>
+<!-- Data points -->
+<circle cx="200" cy="100" fill="#4f1c9d" r="5"></circle>
+<circle cx="400" cy="120" fill="#4f1c9d" r="5"></circle>
+<circle cx="600" cy="60" fill="#4f1c9d" r="5"></circle>
+</svg>
+<div class="absolute bottom-0 left-0 w-full flex justify-between px-2 text-[10px] font-bold text-on-surface-variant uppercase tracking-tighter opacity-50">
+<span>Ene</span><span>Feb</span><span>Mar</span><span>Abr</span><span>May</span><span>Jun</span>
+</div>
+</div>
+</div>
+<!-- 2. Bar/Reason: Frequent Consultation -->
+<div class="lg:col-span-4 bg-surface-container-lowest p-8 rounded-full border border-outline-variant/10">
+<h3 class="text-xl font-bold font-headline mb-6">Motivos de Consulta</h3>
+<div class="space-y-5">
+<div class="space-y-2">
+<div class="flex justify-between text-sm font-semibold">
+<span>Cefalea / Migraña</span>
+<span class="text-primary">42%</span>
+</div>
+<div class="h-2.5 w-full bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full" style="width: 42%"></div>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between text-sm font-semibold">
+<span>Control de Presión</span>
+<span class="text-primary">28%</span>
+</div>
+<div class="h-2.5 w-full bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-primary-container rounded-full" style="width: 28%"></div>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between text-sm font-semibold">
+<span>Accidentes Menores</span>
+<span class="text-primary">15%</span>
+</div>
+<div class="h-2.5 w-full bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-secondary-fixed-dim rounded-full" style="width: 15%"></div>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between text-sm font-semibold">
+<span>Otros</span>
+<span class="text-primary">15%</span>
+</div>
+<div class="h-2.5 w-full bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-outline-variant rounded-full" style="width: 15%"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- 4. Breakdown: User Type -->
+<div class="lg:col-span-12 grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="bg-primary p-8 rounded-full text-white overflow-hidden relative group">
+<div class="relative z-10 flex justify-between items-center">
+<div>
+<h4 class="text-2xl font-bold font-headline">Estudiantes</h4>
+<p class="text-primary-fixed opacity-90 mt-1 font-medium">Representan el 74% de las atenciones totales.</p>
+<div class="mt-6 flex items-baseline gap-2">
+<span class="text-5xl font-black">950</span>
+<span class="text-lg opacity-60">Consultas</span>
+</div>
+</div>
+<div class="w-32 h-32 opacity-20">
+<span class="material-symbols-outlined !text-[120px]" data-icon="school">school</span>
+</div>
+</div>
+<!-- Abstract bg decoration -->
+<div class="absolute -right-10 -bottom-10 w-64 h-64 bg-white/5 rounded-full blur-3xl group-hover:scale-110 transition-transform"></div>
+</div>
+<div class="bg-surface-container-high p-8 rounded-full border border-outline-variant/10 overflow-hidden relative group">
+<div class="relative z-10 flex justify-between items-center">
+<div>
+<h4 class="text-2xl font-bold font-headline text-on-surface">Administrativos</h4>
+<p class="text-on-surface-variant mt-1 font-medium">Representan el 26% de las atenciones totales.</p>
+<div class="mt-6 flex items-baseline gap-2">
+<span class="text-5xl font-black text-on-surface">334</span>
+<span class="text-lg text-on-surface-variant">Consultas</span>
+</div>
+</div>
+<div class="w-32 h-32 opacity-10">
+<span class="material-symbols-outlined !text-[120px]" data-icon="badge">badge</span>
+</div>
+</div>
+<!-- Abstract bg decoration -->
+<div class="absolute -right-10 -bottom-10 w-64 h-64 bg-primary/5 rounded-full blur-3xl group-hover:scale-110 transition-transform"></div>
+</div>
+</div>
+<!-- 5. Table Style: Recent Detailed Log (Asymmetric Editorial Style) -->
+<div class="lg:col-span-12 bg-surface-container-low p-10 rounded-full">
+<div class="flex justify-between items-center mb-10">
+<h3 class="text-2xl font-black font-headline tracking-tight">Desglose por Facultad</h3>
+<button class="text-primary font-bold hover:underline flex items-center gap-1">
+                            Ver listado completo
+                            <span class="material-symbols-outlined text-sm" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</div>
+<div class="space-y-6">
+<!-- Row 1 -->
+<div class="flex items-center justify-between pb-6 border-b border-outline-variant/20">
+<div class="flex items-center gap-6">
+<div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-primary shadow-sm font-bold">F-ING</div>
+<div>
+<div class="text-lg font-bold">Facultad de Ingeniería</div>
+<div class="text-sm text-on-surface-variant font-medium">Carreras de Tecnología y Civil</div>
+</div>
+</div>
+<div class="flex items-center gap-12">
+<div class="text-right">
+<div class="text-xl font-extrabold">412</div>
+<div class="text-xs font-bold text-on-surface-variant uppercase tracking-widest opacity-60">Atenciones</div>
+</div>
+<div class="px-4 py-1.5 bg-tertiary-container/20 text-on-tertiary-fixed-variant rounded-full text-xs font-bold">ESTABLE</div>
+</div>
+</div>
+<!-- Row 2 -->
+<div class="flex items-center justify-between pb-6 border-b border-outline-variant/20">
+<div class="flex items-center gap-6">
+<div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-primary shadow-sm font-bold">F-ADM</div>
+<div>
+<div class="text-lg font-bold">Facultad de Negocios</div>
+<div class="text-sm text-on-surface-variant font-medium">Administración y Marketing</div>
+</div>
+</div>
+<div class="flex items-center gap-12">
+<div class="text-right">
+<div class="text-xl font-extrabold">285</div>
+<div class="text-xs font-bold text-on-surface-variant uppercase tracking-widest opacity-60">Atenciones</div>
+</div>
+<div class="px-4 py-1.5 bg-error-container text-on-error-container rounded-full text-xs font-bold">ALERTA +5%</div>
+</div>
+</div>
+<!-- Row 3 -->
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-6">
+<div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-primary shadow-sm font-bold">F-ART</div>
+<div>
+<div class="text-lg font-bold">Facultad de Diseño</div>
+<div class="text-sm text-on-surface-variant font-medium">Diseño Gráfico e Interiores</div>
+</div>
+</div>
+<div class="flex items-center gap-12">
+<div class="text-right">
+<div class="text-xl font-extrabold">198</div>
+<div class="text-xs font-bold text-on-surface-variant uppercase tracking-widest opacity-60">Atenciones</div>
+</div>
+<div class="px-4 py-1.5 bg-secondary-container text-on-secondary-fixed-variant rounded-full text-xs font-bold">EN RANGO</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- FAB for New Consultation (Contextual) -->
+<button class="fixed bottom-8 right-8 w-16 h-16 bg-primary text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all z-40">
+<span class="material-symbols-outlined !text-3xl" data-icon="add">add</span>
+</button>
+</main>
+<!-- Mobile Navigation Shell -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full bg-surface-container-low/95 backdrop-blur-md flex justify-around py-3 px-2 z-50">
+<a class="flex flex-col items-center gap-1 text-on-surface-variant" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="text-[10px] font-bold">Inicio</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-on-surface-variant" href="#">
+<span class="material-symbols-outlined" data-icon="medical_services">medical_services</span>
+<span class="text-[10px] font-bold">Atención</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined" data-icon="analytics" style="font-variation-settings: 'FILL' 1;">analytics</span>
+<span class="text-[10px] font-bold">Reportes</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-on-surface-variant" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="text-[10px] font-bold">Perfil</span>
+</a>
+</nav>
+</body></html>

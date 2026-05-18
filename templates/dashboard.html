@@ -1,0 +1,639 @@
+<!doctype html>
+
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              'on-primary-fixed': '#260059',
+              'on-surface': '#1d1a22',
+              'outline-variant': '#ccc3d5',
+              'on-tertiary-container': '#4ce3c7',
+              'on-primary-fixed-variant': '#5727a6',
+              'on-primary-container': '#d8c1ff',
+              'inverse-primary': '#d3bbff',
+              'surface-container-low': '#f9f1fc',
+              'on-secondary-container': '#526772',
+              outline: '#7b7484',
+              'tertiary-fixed': '#68fadd',
+              'tertiary-fixed-dim': '#44ddc1',
+              'on-tertiary': '#ffffff',
+              'surface-tint': '#7043bf',
+              'surface-container-lowest': '#ffffff',
+              'surface-bright': '#fef7ff',
+              'primary-container': '#673ab6',
+              'on-error': '#ffffff',
+              'surface-dim': '#dfd7e3',
+              background: '#fef7ff',
+              'surface-container': '#f3ebf6',
+              primary: '#4f1c9d',
+              'on-tertiary-fixed': '#00201a',
+              'on-secondary': '#ffffff',
+              'error-container': '#ffdad6',
+              'on-surface-variant': '#4a4453',
+              'secondary-container': '#cfe6f2',
+              'secondary-fixed': '#cfe6f2',
+              secondary: '#4c616c',
+              'tertiary-container': '#006254',
+              'primary-fixed': '#ebddff',
+              'on-background': '#1d1a22',
+              'on-error-container': '#93000a',
+              'on-tertiary-fixed-variant': '#005145',
+              'surface-container-high': '#ede6f1',
+              'primary-fixed-dim': '#d3bbff',
+              error: '#ba1a1a',
+              'on-primary': '#ffffff',
+              surface: '#fef7ff',
+              tertiary: '#00483d',
+              'surface-container-highest': '#e7e0eb',
+              'secondary-fixed-dim': '#b4cad6',
+              'on-secondary-fixed-variant': '#354a53',
+              'surface-variant': '#e7e0eb',
+              'inverse-surface': '#322f37',
+              'inverse-on-surface': '#f6eef9',
+              'on-secondary-fixed': '#071e27',
+            },
+            fontFamily: {
+              headline: ['Manrope'],
+              body: ['Inter'],
+              label: ['Inter'],
+            },
+            borderRadius: {
+              DEFAULT: '0.125rem',
+              lg: '0.5rem',
+              xl: '0.75rem',
+              full: '9999px',
+            },
+          },
+        },
+      }
+    </script>
+    <style>
+      .material-symbols-outlined {
+        font-variation-settings:
+          'FILL' 0,
+          'wght' 400,
+          'GRAD' 0,
+          'opsz' 24;
+      }
+      .tonal-shift {
+        transition: background-color 0.3s ease;
+      }
+      body {
+        background-color: #fef7ff;
+        color: #1d1a22;
+      }
+    </style>
+  </head>
+  <body
+    class="font-body selection:bg-primary-fixed selection:text-on-primary-fixed"
+  >
+    <!-- SideNavBar (Authority: JSON) -->
+    <aside
+      class="fixed left-0 top-0 h-screen w-[280px] bg-slate-50 dark:bg-slate-950 border-r-0 flex flex-col py-6 space-y-2 z-50 font-manrope text-sm font-medium"
+    >
+      <div class="px-8 mb-10">
+        <div class="flex items-center gap-3">
+          <div
+            class="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white"
+          >
+            <span class="material-symbols-outlined" data-icon="medical_services"
+              >medical_services</span
+            >
+          </div>
+          <div>
+            <h1
+              class="text-2xl font-black text-violet-700 dark:text-violet-500 tracking-tight"
+            >
+              Neumann
+            </h1>
+            <p
+              class="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold"
+            >
+              Medical System
+            </p>
+          </div>
+        </div>
+      </div>
+      <nav class="flex-1 px-4 space-y-1">
+        <a
+          class="flex items-center px-4 py-3 bg-violet-100 dark:bg-violet-900/30 text-violet-800 dark:text-violet-100 rounded-lg transition-all duration-200 ease-in-out group"
+          href="#"
+        >
+          <span class="material-symbols-outlined mr-3" data-icon="dashboard"
+            >dashboard</span
+          >
+          <span>Dashboard</span>
+        </a>
+        <a
+          class="flex items-center px-4 py-3 text-slate-600 dark:text-slate-400 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 rounded-lg transition-all duration-200 ease-in-out group"
+          href="#"
+        >
+          <span
+            class="material-symbols-outlined mr-3 text-slate-400 group-hover:text-violet-600"
+            data-icon="medical_services"
+            >medical_services</span
+          >
+          <span>Patients/History</span>
+        </a>
+        <a
+          class="flex items-center px-4 py-3 text-slate-600 dark:text-slate-400 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 rounded-lg transition-all duration-200 ease-in-out group"
+          href="#"
+        >
+          <span
+            class="material-symbols-outlined mr-3 text-slate-400 group-hover:text-violet-600"
+            data-icon="add_box"
+            >add_box</span
+          >
+          <span>New Consultation</span>
+        </a>
+      </nav>
+      <div class="px-6 mt-auto space-y-4">
+        <button
+          class="w-full py-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-transform"
+        >
+          Emergency Triage
+        </button>
+        <div
+          class="pt-6 border-t border-slate-200 dark:border-slate-800 space-y-1"
+        >
+          <a
+            class="flex items-center px-4 py-2 text-slate-500 hover:text-violet-600 transition-colors"
+            href="#"
+          >
+            <span
+              class="material-symbols-outlined mr-3 text-sm"
+              data-icon="help"
+              >help</span
+            >
+            <span class="text-xs">Help Center</span>
+          </a>
+          <a
+            class="flex items-center px-4 py-2 text-slate-500 hover:text-error transition-colors"
+            href="#"
+          >
+            <span
+              class="material-symbols-outlined mr-3 text-sm"
+              data-icon="logout"
+              >logout</span
+            >
+            <span class="text-xs">Logout</span>
+          </a>
+        </div>
+      </div>
+    </aside>
+    <!-- TopAppBar (Authority: JSON) -->
+    <header
+      class="fixed top-0 right-0 w-[calc(100%-280px)] h-16 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 shadow-sm flex items-center justify-between px-8 font-manrope antialiased"
+    >
+      <div class="flex items-center flex-1">
+        <div class="relative w-full max-w-md">
+          <span
+            class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg"
+            data-icon="search"
+            >search</span
+          >
+          <input
+            class="w-full pl-10 pr-4 py-2 bg-slate-100 border-none rounded-full text-sm focus:ring-2 focus:ring-primary/20 transition-all"
+            placeholder="Buscar alumnos, expedientes..."
+            type="text"
+          />
+        </div>
+      </div>
+      <div class="flex items-center gap-6">
+        <div class="flex items-center gap-2">
+          <button
+            class="w-10 h-10 flex items-center justify-center rounded-full text-slate-500 hover:bg-slate-50 transition-colors"
+          >
+            <span class="material-symbols-outlined" data-icon="notifications"
+              >notifications</span
+            >
+          </button>
+          <button
+            class="w-10 h-10 flex items-center justify-center rounded-full text-slate-500 hover:bg-slate-50 transition-colors"
+          >
+            <span class="material-symbols-outlined" data-icon="settings"
+              >settings</span
+            >
+          </button>
+        </div>
+        <div class="h-8 w-[1px] bg-slate-200"></div>
+        <div class="flex items-center gap-3">
+          <div class="text-right">
+            <p class="text-sm font-bold text-on-surface">Dr. Alejandro V.</p>
+            <p class="text-[10px] text-on-surface-variant font-medium">
+              Tópico Instituto Neumann
+            </p>
+          </div>
+          <img
+            alt="Medical Practitioner Profile"
+            class="w-10 h-10 rounded-full object-cover ring-2 ring-primary/10"
+            data-alt="professional portrait of a medical doctor in a white coat with a friendly expression in a bright modern office"
+            src="https://lh3.googleusercontent.com/aida-public/AB6AXuDZp_IilmhfpfMnvOJuO2fjMc_4LAofU_DhFVt_ZAbSCh3fRE-ea9IgX93AwoewX9tHOdmUNtcRtf35tMpmoVuKIEx1bbYd_3XI0yBmOnSoLMZQqtFwF_DPi_UzW_McEjRRfgo5e6yfTuH8ABrvDrB3u5DjySaBa-l__XbdEyhXpTd2TFNrMDzIrE2KaykqAEFDVFNw9wFO7CgTDqUqKjvTotuwt4zTnmFC-E_t5HwxYdx9Q6gBMETPMnY2tVi8aYcrdGW3RLplDFw"
+          />
+        </div>
+      </div>
+    </header>
+    <!-- Main Content Canvas -->
+    <main class="ml-[280px] pt-24 px-8 pb-12 min-h-screen">
+      <!-- Welcome Section -->
+      <section class="mb-10">
+        <h2
+          class="text-3xl font-bold font-headline text-on-surface tracking-tight"
+        >
+          Panel de Control Académico
+        </h2>
+        <p class="text-on-surface-variant mt-1">
+          Bienvenido al sistema central de salud del Tópico Instituto Neumann.
+        </p>
+      </section>
+      <!-- Metrics Bento Grid (Authority: Design System - Soft Layering) -->
+      <section class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <!-- Metric 1 -->
+        <div
+          class="bg-surface-container-lowest p-6 rounded-xl border-none shadow-sm flex flex-col justify-between group hover:scale-[1.01] transition-transform"
+        >
+          <div class="flex justify-between items-start mb-4">
+            <div class="p-3 bg-primary-fixed rounded-lg text-primary">
+              <span class="material-symbols-outlined" data-icon="stethoscope"
+                >stethoscope</span
+              >
+            </div>
+            <span
+              class="text-[10px] font-bold text-primary bg-primary-fixed px-2 py-1 rounded-full uppercase"
+              >Hoy</span
+            >
+          </div>
+          <div>
+            <span class="text-4xl font-extrabold font-headline text-on-surface"
+              >24</span
+            >
+            <p class="text-sm font-medium text-on-surface-variant mt-1">
+              Consultas totales hoy
+            </p>
+          </div>
+          <div class="mt-4 pt-4 border-t border-slate-50">
+            <div class="flex items-center text-xs text-tertiary font-semibold">
+              <span
+                class="material-symbols-outlined text-sm mr-1"
+                data-icon="trending_up"
+                >trending_up</span
+              >
+              <span>12% más que ayer</span>
+            </div>
+          </div>
+        </div>
+        <!-- Metric 2 -->
+        <div
+          class="bg-surface-container-lowest p-6 rounded-xl border-none shadow-sm flex flex-col justify-between group hover:scale-[1.01] transition-transform"
+        >
+          <div class="flex justify-between items-start mb-4">
+            <div class="p-3 bg-secondary-container rounded-lg text-secondary">
+              <span
+                class="material-symbols-outlined"
+                data-icon="pending_actions"
+                >pending_actions</span
+              >
+            </div>
+            <span
+              class="text-[10px] font-bold text-secondary bg-secondary-container px-2 py-1 rounded-full uppercase"
+              >En curso</span
+            >
+          </div>
+          <div>
+            <span class="text-4xl font-extrabold font-headline text-on-surface"
+              >08</span
+            >
+            <p class="text-sm font-medium text-on-surface-variant mt-1">
+              Casos activos
+            </p>
+          </div>
+          <div class="mt-4 pt-4 border-t border-slate-50">
+            <div
+              class="flex items-center text-xs text-on-surface-variant font-semibold"
+            >
+              <span
+                class="material-symbols-outlined text-sm mr-1"
+                data-icon="schedule"
+                >schedule</span
+              >
+              <span>Promedio 15m espera</span>
+            </div>
+          </div>
+        </div>
+        <!-- Metric 3 -->
+        <div
+          class="bg-surface-container-lowest p-6 rounded-xl border-none shadow-sm flex flex-col justify-between group hover:scale-[1.01] transition-transform"
+        >
+          <div class="flex justify-between items-start mb-4">
+            <div class="p-3 bg-tertiary-container/10 rounded-lg text-tertiary">
+              <span class="material-symbols-outlined" data-icon="task_alt"
+                >task_alt</span
+              >
+            </div>
+            <span
+              class="text-[10px] font-bold text-tertiary bg-tertiary-fixed/30 px-2 py-1 rounded-full uppercase"
+              >Mensual</span
+            >
+          </div>
+          <div>
+            <span class="text-4xl font-extrabold font-headline text-on-surface"
+              >112</span
+            >
+            <p class="text-sm font-medium text-on-surface-variant mt-1">
+              Casos cerrados este mes
+            </p>
+          </div>
+          <div class="mt-4 pt-4 border-t border-slate-50">
+            <div class="flex items-center text-xs text-tertiary font-semibold">
+              <span
+                class="material-symbols-outlined text-sm mr-1"
+                data-icon="check_circle"
+                >check_circle</span
+              >
+              <span>98% tasa de resolución</span>
+            </div>
+          </div>
+        </div>
+      </section>
+      <!-- Main Dashboard Layout (Asymmetric) -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Activity Table (Authority: Design System - Editorial Authority) -->
+        <div class="lg:col-span-2 space-y-6">
+          <div class="flex items-center justify-between px-2">
+            <h3 class="text-xl font-bold font-headline text-on-surface">
+              Actividad Reciente
+            </h3>
+            <button class="text-primary text-sm font-bold hover:underline">
+              Ver Historial Completo
+            </button>
+          </div>
+          <div
+            class="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden"
+          >
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-surface-container-low">
+                  <th
+                    class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider"
+                  >
+                    Estudiante
+                  </th>
+                  <th
+                    class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider"
+                  >
+                    ID / Carnet
+                  </th>
+                  <th
+                    class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider"
+                  >
+                    Hora
+                  </th>
+                  <th
+                    class="px-6 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider text-right"
+                  >
+                    Estado
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-50">
+                <!-- Row 1 -->
+                <tr class="hover:bg-slate-50/50 transition-colors">
+                  <td class="px-6 py-5">
+                    <div class="flex items-center gap-3">
+                      <div
+                        class="w-8 h-8 rounded-full bg-primary-fixed flex items-center justify-center text-primary font-bold text-xs"
+                      >
+                        MA
+                      </div>
+                      <span class="font-semibold text-on-surface"
+                        >Mateo Alarcón</span
+                      >
+                    </div>
+                  </td>
+                  <td class="px-6 py-5 text-sm text-on-surface-variant">
+                    #2023-0142
+                  </td>
+                  <td class="px-6 py-5 text-sm text-on-surface-variant">
+                    09:15 AM
+                  </td>
+                  <td class="px-6 py-5 text-right">
+                    <span
+                      class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-tertiary-container text-tertiary-fixed-dim"
+                    >
+                      Open
+                    </span>
+                  </td>
+                </tr>
+                <!-- Row 2 -->
+                <tr class="hover:bg-slate-50/50 transition-colors">
+                  <td class="px-6 py-5">
+                    <div class="flex items-center gap-3">
+                      <div
+                        class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center text-secondary font-bold text-xs"
+                      >
+                        SP
+                      </div>
+                      <span class="font-semibold text-on-surface"
+                        >Sofía Paredes</span
+                      >
+                    </div>
+                  </td>
+                  <td class="px-6 py-5 text-sm text-on-surface-variant">
+                    #2022-0988
+                  </td>
+                  <td class="px-6 py-5 text-sm text-on-surface-variant">
+                    08:45 AM
+                  </td>
+                  <td class="px-6 py-5 text-right">
+                    <span
+                      class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-secondary-container text-on-secondary-fixed-variant"
+                    >
+                      Follow-up
+                    </span>
+                  </td>
+                </tr>
+                <!-- Row 3 -->
+                <tr class="hover:bg-slate-50/50 transition-colors">
+                  <td class="px-6 py-5">
+                    <div class="flex items-center gap-3">
+                      <div
+                        class="w-8 h-8 rounded-full bg-surface-variant flex items-center justify-center text-on-surface-variant font-bold text-xs"
+                      >
+                        DL
+                      </div>
+                      <span class="font-semibold text-on-surface"
+                        >Diego López</span
+                      >
+                    </div>
+                  </td>
+                  <td class="px-6 py-5 text-sm text-on-surface-variant">
+                    #2024-0012
+                  </td>
+                  <td class="px-6 py-5 text-sm text-on-surface-variant">
+                    08:00 AM
+                  </td>
+                  <td class="px-6 py-5 text-right">
+                    <span
+                      class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-surface-variant text-on-surface-variant"
+                    >
+                      Closed
+                    </span>
+                  </td>
+                </tr>
+                <!-- Row 4 -->
+                <tr class="hover:bg-slate-50/50 transition-colors">
+                  <td class="px-6 py-5">
+                    <div class="flex items-center gap-3">
+                      <div
+                        class="w-8 h-8 rounded-full bg-primary-fixed flex items-center justify-center text-primary font-bold text-xs"
+                      >
+                        LR
+                      </div>
+                      <span class="font-semibold text-on-surface"
+                        >Lucía Rojas</span
+                      >
+                    </div>
+                  </td>
+                  <td class="px-6 py-5 text-sm text-on-surface-variant">
+                    #2021-1122
+                  </td>
+                  <td class="px-6 py-5 text-sm text-on-surface-variant">
+                    07:50 AM
+                  </td>
+                  <td class="px-6 py-5 text-right">
+                    <span
+                      class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-surface-variant text-on-surface-variant"
+                    >
+                      Closed
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <!-- Sidebar Info (Authority: Glass & Gradient) -->
+        <div class="space-y-6">
+          <!-- Quick Consult Card -->
+          <div
+            class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-primary-container p-6 text-white shadow-xl shadow-primary/30"
+          >
+            <div class="relative z-10">
+              <h4 class="text-lg font-bold font-headline mb-2">
+                Nueva Consulta
+              </h4>
+              <p class="text-primary-fixed/80 text-sm mb-6 leading-relaxed">
+                Inicia el registro médico de un estudiante de forma rápida y
+                segura.
+              </p>
+              <button
+                class="w-full py-3 bg-white text-primary rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-primary-fixed transition-colors"
+              >
+                <span class="material-symbols-outlined" data-icon="add"
+                  >add</span
+                >
+                <span>Registrar Alumno</span>
+              </button>
+            </div>
+            <div class="absolute -right-10 -bottom-10 opacity-10">
+              <span
+                class="material-symbols-outlined text-[150px]"
+                data-icon="health_and_safety"
+                >health_and_safety</span
+              >
+            </div>
+          </div>
+          <!-- Upcoming Appointments / Monitoring -->
+          <div class="bg-surface-container-high p-6 rounded-2xl">
+            <h4 class="font-bold text-on-surface mb-4 flex items-center gap-2">
+              <span
+                class="material-symbols-outlined text-primary"
+                data-icon="emergency_home"
+                >emergency_home</span
+              >
+              Seguimiento Crítico
+            </h4>
+            <div class="space-y-4">
+              <div
+                class="bg-surface-container-lowest p-4 rounded-xl border-l-4 border-error"
+              >
+                <p class="text-xs font-bold text-error uppercase mb-1">
+                  Inmediato
+                </p>
+                <p class="text-sm font-semibold text-on-surface">
+                  Revisión de Alergia
+                </p>
+                <p class="text-xs text-on-surface-variant">
+                  Carlos M. - Aula 402
+                </p>
+              </div>
+              <div
+                class="bg-surface-container-lowest p-4 rounded-xl border-l-4 border-secondary"
+              >
+                <p class="text-xs font-bold text-secondary uppercase mb-1">
+                  Pendiente
+                </p>
+                <p class="text-sm font-semibold text-on-surface">
+                  Control de Presión
+                </p>
+                <p class="text-xs text-on-surface-variant">
+                  Prof. Martha S. - 12:30 PM
+                </p>
+              </div>
+            </div>
+          </div>
+          <!-- Statistics Summary Image Card -->
+          <div class="rounded-2xl overflow-hidden relative group">
+            <img
+              alt="Medical workspace"
+              class="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-500"
+              data-alt="clean modern medical office with high-tech equipment and minimalist interior design with soft violet lighting"
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuDmUoyks1aa7IdU6lO18KxFR2M2ZYN1wIuBcsvhLKms_rgxPCq9kpejKH9zCy59ZpxRJTPubbk2rzYpcJhZuqzmtk8y_ftizh7S1bWjFaXH74TWMZLb0QsqKSkl3neVfeeAayw2LtWFK9dwKsU7bGqnsqWlGwCYgObct0ayg1XAKnblejDUA0jEw6vazq88mgmlf6AtnrOzCC4WLI3rsjiUPxOVJn9xTwwtA6zb1-9_jPLIGAcE2gQ1xFzJsCaM78J3NEKawuB9zkI"
+            />
+            <div
+              class="absolute inset-0 bg-gradient-to-t from-on-surface to-transparent flex flex-col justify-end p-4"
+            >
+              <p class="text-white font-bold text-sm">Resumen Semanal</p>
+              <p class="text-white/70 text-xs">
+                Reporte generado satisfactoriamente.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+    <!-- Contextual FAB (Authority: JSON/Hierarchy - Only on Dashboard/Home) -->
+    <div class="fixed bottom-8 right-8 z-50">
+      <button
+        class="flex items-center gap-3 bg-primary text-white px-6 py-4 rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all group"
+      >
+        <span
+          class="material-symbols-outlined"
+          data-icon="add_box"
+          style="font-variation-settings: 'FILL' 1"
+          >add_box</span
+        >
+        <span class="font-bold tracking-wide">Nueva Consulta</span>
+      </button>
+    </div>
+  </body>
+</html>
