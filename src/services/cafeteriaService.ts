@@ -62,22 +62,8 @@ export const cafeteriaService = {
       tiempoServicio: normalizeBoolean(record.tiempoServicio),
       calidadPrecio: normalizeBoolean(record.calidadPrecio),
       preciosCompetitivos: normalizeBoolean(record.preciosCompetitivos),
-      productosLocales: normalizeBoolean(record.productosLocales),
-      reciclaResiduos: normalizeBoolean(record.reciclaResiduos),
       estadoEquipamiento: normalizeBoolean(record.estadoEquipamiento),
     }))
-  },
-
-  updateSupervision: async (formData: { id: string } & Record<string, any>) => {
-    const response = await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      body: JSON.stringify({
-        action: 'actualizarSupervisionCafeteria',
-        ...formData,
-      }),
-    })
-
-    return await parseResponse(response)
   },
 
   deleteSupervision: async (id: string) => {

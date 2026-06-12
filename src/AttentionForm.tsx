@@ -1,10 +1,19 @@
 import { Dispatch, SetStateAction, useEffect } from 'react'
+import { DEFAULT_ACADEMIC_PERIOD } from './constants/academicPeriod'
 
 type AttentionFormProps = {
+  programa: string
+  setPrograma: Dispatch<SetStateAction<string>>
+  ciclo: string
+  setCiclo: Dispatch<SetStateAction<string>>
+  section: string
+  setSection: Dispatch<SetStateAction<string>>
   motivoAtencion: string
   setMotivoAtencion: Dispatch<SetStateAction<string>>
   periodo: string
   setPeriodo: Dispatch<SetStateAction<string>>
+  horaSalida: string
+  setHoraSalida: Dispatch<SetStateAction<string>>
   areaProblematica: string
   setAreaProblematica: Dispatch<SetStateAction<string>>
   customAreaProblematica: string
@@ -22,6 +31,8 @@ function AttentionForm({
   setMotivoAtencion,
   periodo,
   setPeriodo,
+  horaSalida,
+  setHoraSalida,
   areaProblematica,
   setAreaProblematica,
   customAreaProblematica,
@@ -38,6 +49,21 @@ function AttentionForm({
       setMedioContacto('Presencial')
     }
   }, [medioContacto, setMedioContacto])
+
+  useEffect(() => {
+    if (!periodo) {
+      setPeriodo(DEFAULT_ACADEMIC_PERIOD)
+    }
+  }, [periodo, setPeriodo])
+
+  useEffect(() => {
+    if (!horaSalida) {
+      const now = new Date()
+      const hours = String(now.getHours()).padStart(2, '0')
+      const minutes = String(now.getMinutes()).padStart(2, '0')
+      setHoraSalida(`${hours}:${minutes}`)
+    }
+  }, [horaSalida, setHoraSalida])
 
   const formatPeriodoInput = (value: string) => {
     const normalized = value.toUpperCase().replace(/[^0-9IVXLCDM\- ]/g, '')
@@ -85,6 +111,71 @@ function AttentionForm({
       </div>
 
       <div className='grid grid-cols-1 gap-6'>
+        {/* <div className='space-y-6'>
+          <div className='space-y-1.5'>
+            <label className='block text-sm font-medium text-on-surface-variant ml-1'>
+              Programa
+            </label>
+            <select
+              value={programa}
+              onChange={(e) => setPrograma(e.target.value)}
+              className='max-w-lg w-full px-4 py-3 bg-surface-container-low border-none rounded-xl focus:ring-2 focus:ring-primary/20 transition-all text-on-surface appearance-none'
+            >
+              <option>Seleccionar...</option>
+              <option>Administración de Negocios Internacionales</option>
+              <option>Contabilidad</option>
+            </select>
+          </div>
+          <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
+            <div className='space-y-1.5'>
+              <label className='block text-sm font-medium text-on-surface-variant ml-1'>
+                Hora de salida
+              </label>
+              <input
+                value={horaSalida}
+                onChange={(e) => setHoraSalida(e.target.value)}
+                className='w-full px-4 py-3 bg-surface-container-low border-none rounded-xl focus:ring-2 focus:ring-primary/20 transition-all text-on-surface'
+                type='time'
+              />
+            </div>
+
+            <div className='space-y-1.5'>
+              <label className='block text-sm font-medium text-on-surface-variant ml-1'>
+                Ciclo
+              </label>
+              <select
+                value={ciclo}
+                onChange={(e) => setCiclo(e.target.value)}
+                className='max-w-lg w-full px-4 py-3 bg-surface-container-low border-none rounded-xl focus:ring-2 focus:ring-primary/20 transition-all text-on-surface appearance-none'
+              >
+                <option>Seleccionar...</option>
+                <option>Primer Ciclo</option>
+                <option>Segundo Ciclo</option>
+                <option>Tercer Ciclo</option>
+                <option>Cuarto Ciclo</option>
+                <option>Quinto Ciclo</option>
+                <option>Sexto Ciclo</option>
+              </select>
+            </div>
+            <div className='space-y-1.5'>
+              <label className='block text-sm font-medium text-on-surface-variant ml-1'>
+                Sección
+              </label>
+              <select
+                value={section}
+                onChange={(e) => setSection(e.target.value)}
+                className='max-w-lg w-full px-4 py-3 bg-surface-container-low border-none rounded-xl focus:ring-2 focus:ring-primary/20 transition-all text-on-surface appearance-none'
+              >
+                <option>Seleccionar...</option>
+                <option>A</option>
+                <option>B</option>
+                <option>C</option>
+                <option>D</option>
+              </select>
+            </div>
+          </div>
+        </div> */}
+
         <div className='space-y-1.5'>
           <label className='block text-sm font-medium text-on-surface-variant ml-1'>
             Motivo de atención <span className='text-red-500'>*</span>
@@ -98,7 +189,7 @@ function AttentionForm({
           />
         </div>
 
-        <div className='grid grid-cols-1 md:grid-cols-4 gap-6'>
+        <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
           <div className='space-y-1.5'>
             <label className='block text-sm font-medium text-on-surface-variant ml-1'>
               Periodo <span className='text-red-500'>*</span>
@@ -107,10 +198,11 @@ function AttentionForm({
               value={periodo}
               onChange={(e) => setPeriodo(formatPeriodoInput(e.target.value))}
               className='w-full px-4 py-3 bg-surface-container-low border-none rounded-xl focus:ring-2 focus:ring-primary/20 transition-all text-on-surface placeholder:text-outline-variant'
-              placeholder='2026 - I'
+              placeholder={DEFAULT_ACADEMIC_PERIOD}
               type='text'
             />
           </div>
+
           <div className='space-y-1.5'>
             <label className='block text-sm font-medium text-on-surface-variant ml-1'>
               Área problemática principal{' '}
@@ -144,6 +236,7 @@ function AttentionForm({
               />
             )}
           </div>
+
           <div className='space-y-1.5'>
             <label className='block text-sm font-medium text-on-surface-variant ml-1'>
               Medio de contacto <span className='text-red-500'>*</span>
@@ -161,7 +254,9 @@ function AttentionForm({
               <option>Otro</option>
             </select>
           </div>
-          <div className='space-y-1.5'>
+        </div>
+        <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
+          <div className='space-y-1.5 mt-4 w-full max-w-lg'>
             <label className='block text-sm font-medium text-on-surface-variant ml-1'>
               Resultado <span className='text-red-500'>*</span>
             </label>
@@ -177,8 +272,18 @@ function AttentionForm({
               <option>No concluyente</option>
             </select>
           </div>
+          <div className='space-y-1.5'>
+            <label className='block text-sm font-medium text-on-surface-variant ml-1'>
+              Hora de salida
+            </label>
+            <input
+              value={horaSalida}
+              onChange={(e) => setHoraSalida(e.target.value)}
+              className='w-full max-w-xs px-4 py-3 bg-surface-container-low border-none rounded-xl focus:ring-2 focus:ring-primary/20 transition-all text-on-surface'
+              type='time'
+            />
+          </div>
         </div>
-
         <div className='space-y-1.5'>
           <label className='block text-sm font-medium text-on-surface-variant ml-1'>
             Observaciones <span className='text-red-500'>*</span>

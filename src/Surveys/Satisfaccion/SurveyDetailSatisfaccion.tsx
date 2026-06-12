@@ -1,16 +1,19 @@
 import { useState, useEffect } from 'react'
 import { useParams, useSearchParams } from 'react-router'
 import Layout from '../../Layout'
-import { fetchSurveyData } from '../../services/surveyService'
+import { fetchSurveyData, formatSurveyLink } from '../../services/surveyService'
+import ExcelJS from 'exceljs'
 import SatisfaccionGroupedResponses from './SatisfaccionGroupedResponses'
+import ResultadosSatisfaccion from './ResultadosSatisfaccion'
 
-type SatisfaccionResponse = {
+export type SatisfaccionResponse = {
   id?: string
   type?: string
   period?: string
   configId?: string
   registeredAt?: string
   nombresApellidos?: string
+  correoElectronico?: string
   carreraProfesional?: string
   ciclo?: string
   seccion?: string
@@ -31,6 +34,7 @@ const FIELD_CONFIGS: FieldConfig[] = [
   { key: 'carreraProfesional', label: 'Carrera profesional' },
   { key: 'ciclo', label: 'Ciclo' },
   { key: 'seccion', label: 'Sección' },
+  { key: 'correoElectronico', label: 'Correo electrónico' },
   {
     key: 'infoCharla',
     label:
@@ -63,9 +67,6 @@ const displayValue = (value: unknown) => {
   return String(value)
 }
 
-const escapeCsv = (value: unknown) =>
-  `"${displayValue(value).replace(/"/g, '""')}"`
-
 function SurveyDetailSatisfaccion() {
   const { id } = useParams<{ id: string }>()
   const [searchParams] = useSearchParams()
@@ -75,7 +76,9 @@ function SurveyDetailSatisfaccion() {
     SatisfaccionResponse[]
   >([])
   const [isLoading, setIsLoading] = useState(true)
-  const [viewMode, setViewMode] = useState<'individual' | 'summary'>('summary')
+  const [viewMode, setViewMode] = useState<
+    'individual' | 'summary' | 'results'
+  >('summary')
   const [currentResponseIndex, setCurrentResponseIndex] = useState(0)
 
   useEffect(() => {
@@ -100,70 +103,10 @@ function SurveyDetailSatisfaccion() {
     loadSurvey()
   }, [id, period])
 
-  // Función para descargar CSV
-  const downloadCSV = () => {
-    if (filteredResponses.length === 0) return
-
-    const headers = FIELD_CONFIGS.map((field) => field.label)
-    const csvRows = []
-    csvRows.push(headers.join(','))
-
-    for (const response of filteredResponses) {
-      const values = headers.map((header) => {
-        const field = FIELD_CONFIGS.find((item) => item.label === header)
-        const rawValue = field ? response[field.key] : ''
-        return escapeCsv(rawValue)
-      })
-      csvRows.push(values.join(','))
-    }
-
-    const blob = new Blob([csvRows.join('\n')], {
-      type: 'text/csv;charset=utf-8;',
-    })
-    const link = document.createElement('a')
-    const url = URL.createObjectURL(blob)
-    link.setAttribute('href', url)
-    link.setAttribute(
-      'download',
-      `respuestas_${SURVEY_TYPE}_${period}_todos.csv`,
-    )
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-  }
-
-  // Función para descargar JSON
-  const downloadJSON = () => {
-    const filteredData = filteredResponses.map((response) =>
-      FIELD_CONFIGS.reduce<Record<string, string>>((acc, field) => {
-        const rawValue = response[field.key]
-        acc[field.key] = field.format
-          ? field.format(rawValue)
-          : displayValue(rawValue)
-        return acc
-      }, {}),
-    )
-
-    const dataStr = JSON.stringify(filteredData, null, 2)
-    const blob = new Blob([dataStr], { type: 'application/json' })
-    const link = document.createElement('a')
-    const url = URL.createObjectURL(blob)
-    link.setAttribute('href', url)
-    link.setAttribute(
-      'download',
-      `respuestas_${SURVEY_TYPE}_${period}_todos.json`,
-    )
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-  }
-
   if (isLoading) {
     return (
       <Layout title='Respuestas de encuesta' activeView='surveys'>
-        <div className='space-y-8'>
+        <div className='space-y-8 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8'>
           <section className='rounded-[32px] border border-outline-variant/20 bg-white/95 p-8 shadow-[0_40px_80px_rgba(0,0,0,0.05)]'>
             <div className='animate-pulse'>
               <div className='h-8 w-1/3 rounded-full bg-slate-200' />
@@ -178,9 +121,60 @@ function SurveyDetailSatisfaccion() {
 
   const currentResponse = filteredResponses[currentResponseIndex]
 
+  const downloadExcel = async () => {
+    if (filteredResponses.length === 0) return
+
+    try {
+      const workbook = new ExcelJS.Workbook()
+      const worksheet = workbook.addWorksheet('Respuestas')
+
+      // Build columns from FIELD_CONFIGS
+      worksheet.columns = FIELD_CONFIGS.map((f) => ({
+        header: f.label,
+        key: String(f.key),
+        width: 28,
+      }))
+
+      // Add rows as objects for better column mapping
+      filteredResponses.forEach((r) => {
+        const rowObj: Record<string, any> = {}
+        FIELD_CONFIGS.forEach((f) => {
+          const val = r[f.key]
+          rowObj[String(f.key)] = f.format ? f.format(val) : displayValue(val)
+        })
+        worksheet.addRow(rowObj)
+      })
+
+      worksheet.eachRow((row) => {
+        row.eachCell((cell) => {
+          cell.alignment = {
+            vertical: 'middle',
+            horizontal: 'left',
+            wrapText: true,
+          }
+        })
+      })
+
+      const buffer = await workbook.xlsx.writeBuffer()
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${SURVEY_TYPE}-${period || 'period'}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Error generating Excel file', err)
+    }
+  }
+
   return (
     <Layout title={`Respuestas - Encuesta`} activeView='surveys'>
-      <div className='space-y-8'>
+      <div className='space-y-8 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8'>
         <section className='grid gap-6 '>
           <div className='rounded-[32px] border border-outline-variant/20 bg-white/95 p-8 shadow-[0_40px_80px_rgba(0,0,0,0.05)]'>
             <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
@@ -192,6 +186,18 @@ function SurveyDetailSatisfaccion() {
                 <h1 className='mt-5 text-3xl font-extrabold tracking-tight text-on-surface'>
                   {SURVEY_TYPE.replace(/([A-Z])/g, ' $1').trim()} • {period}
                 </h1>
+                {id && (
+                  <div className='mt-2'>
+                    <a
+                      href={formatSurveyLink(SURVEY_TYPE, id)}
+                      target='_blank'
+                      rel='noreferrer'
+                      className='text-sm text-primary underline'
+                    >
+                      Ver enlace de la encuesta
+                    </a>
+                  </div>
+                )}
                 <p className='mt-3 max-w-2xl text-sm leading-6 text-on-surface-variant'>
                   Revisa las respuestas recibidas y filtra por ciclo para
                   analizar la información por grupo.
@@ -226,22 +232,13 @@ function SurveyDetailSatisfaccion() {
 
                 <div className='flex gap-2'>
                   <button
-                    onClick={downloadCSV}
+                    onClick={downloadExcel}
                     className='inline-flex items-center gap-2 rounded-full bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-green-700'
                   >
                     <span className='material-symbols-outlined text-base'>
                       download
                     </span>
-                    Descargar CSV
-                  </button>
-                  <button
-                    onClick={downloadJSON}
-                    className='inline-flex items-center gap-2 rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-blue-700'
-                  >
-                    <span className='material-symbols-outlined text-base'>
-                      download
-                    </span>
-                    Descargar JSON
+                    Descargar respuestas
                   </button>
                 </div>
               </div>
@@ -258,8 +255,9 @@ function SurveyDetailSatisfaccion() {
                   <span className='material-symbols-outlined text-base'>
                     bar_chart
                   </span>
-                  Summary
+                  Resumen
                 </button>
+
                 <button
                   onClick={() => setViewMode('individual')}
                   className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all ${
@@ -272,6 +270,19 @@ function SurveyDetailSatisfaccion() {
                     person
                   </span>
                   Vista individual
+                </button>
+                <button
+                  onClick={() => setViewMode('results')}
+                  className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all ${
+                    viewMode === 'results'
+                      ? 'bg-white text-primary shadow-sm'
+                      : 'text-on-surface-variant hover:text-on-surface'
+                  }`}
+                >
+                  <span className='material-symbols-outlined text-base'>
+                    person
+                  </span>
+                  Resultados de satisfacción
                 </button>
               </div>
             </div>
@@ -389,11 +400,13 @@ function SurveyDetailSatisfaccion() {
                   </div>
                 )}
               </div>
-            ) : (
+            ) : viewMode === 'summary' ? (
               <div className='space-y-6'>
                 <SatisfaccionGroupedResponses responses={filteredResponses} />
               </div>
-            )}
+            ) : viewMode === 'results' ? (
+              <ResultadosSatisfaccion responses={filteredResponses} />
+            ) : null}
           </div>
         </section>
       </div>

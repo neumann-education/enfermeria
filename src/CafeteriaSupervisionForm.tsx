@@ -1,4 +1,5 @@
 import { FormState } from './CafeteriaSupervisionTypes'
+import { DEFAULT_ACADEMIC_PERIOD } from './constants/academicPeriod'
 
 type BooleanField = Exclude<
   keyof FormState,
@@ -220,7 +221,7 @@ function CafeteriaSupervisionForm({
                 }
                 disabled={isReadOnly}
                 aria-disabled={isReadOnly}
-                placeholder='2026 - I'
+                placeholder={DEFAULT_ACADEMIC_PERIOD}
                 className={`w-full px-4 py-3 bg-surface-container-low rounded-xl transition-all text-on-surface placeholder:text-outline-variant focus:ring-2 ${
                   errors?.periodo
                     ? 'border border-rose-500 ring-1 ring-rose-100'
@@ -345,7 +346,7 @@ function CafeteriaSupervisionForm({
           </div>
         </section>
 
-        <section>
+        {/* <section>
           <h3 className='text-lg font-bold mb-3'>
             VI) Sostenibilidad y Responsabilidad Social
           </h3>
@@ -359,11 +360,11 @@ function CafeteriaSupervisionForm({
               'Se recicla residuos (botellas plásticas, etc.)?',
             )}
           </div>
-        </section>
+        </section> */}
 
         <section>
           <h3 className='text-lg font-bold mb-3'>
-            VII) Infraestructura y Equipamiento
+            VI) Infraestructura y Equipamiento
           </h3>
           <div className='grid grid-cols-1 md:grid-cols-1 gap-4'>
             {radioGroup(
@@ -375,7 +376,7 @@ function CafeteriaSupervisionForm({
 
         <section>
           <h3 className='text-lg font-bold mb-3'>
-            VIII) Observaciones / Recomendaciones
+            VII) Observaciones / Recomendaciones
           </h3>
           <textarea
             value={form.observaciones}

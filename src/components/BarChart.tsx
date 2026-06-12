@@ -137,10 +137,12 @@ export const PieChartComponent = ({
   data,
   title,
   showLegend = false,
+  compact = false,
 }: {
   data: { label: string; value: number }[]
   title?: string
   showLegend?: boolean
+  compact?: boolean
 }) => {
   const colors = [
     '#3B82F6',
@@ -161,7 +163,7 @@ export const PieChartComponent = ({
   return (
     <div className='space-y-4'>
       {title && <p className='text-sm text-on-surface-variant'>{title}</p>}
-      <ResponsiveContainer width='100%' height={300}>
+      <ResponsiveContainer width='100%' height={compact ? 220 : 300}>
         <PieChart>
           <Pie
             data={chartData}
@@ -173,7 +175,7 @@ export const PieChartComponent = ({
             }: {
               payload?: { label?: string; percentage?: string }
             }) => `${payload?.label ?? ''} (${payload?.percentage ?? '0.0'}%)`}
-            outerRadius={100}
+            outerRadius={compact ? 76 : 100}
             fill='#8884d8'
             dataKey='value'
           >

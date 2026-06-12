@@ -2,7 +2,7 @@
   "name": "enfermeria",
   "private": true,
   "version": "0.0.0",
-  "homepage": "https://erick007ml.github.io/enfermeria",
+  "homepage": "https://neumann-education.github.io/enfermeria/",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,6 +13,7 @@
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
+    "decimal.js": "^10.6.0",
     "exceljs": "^4.4.0",
     "html2canvas": "^1.4.1",
     "pdf-lib": "^1.17.1",

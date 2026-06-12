@@ -23,6 +23,8 @@ const ATENCIONES_HEADERS = [
   'OBSERVACIONES',
   'RESULTADO',
   'URL Constancia',
+  'SECCIÓN',
+  'HORA DE SALIDA',
 ]
 
 const SEGUIMIENTO_ATENCION_HEADERS = [
@@ -43,6 +45,7 @@ const DISCAPACIDAD_HEADERS = [
   'DISCAPACIDAD',
   'CARNET - CONADIS',
   'OBSERVACIONES',
+  'FECHA REGISTRO',
 ]
 
 const SEGUIMIENTO_DISCAPACIDAD_HEADERS = [
@@ -53,6 +56,7 @@ const SEGUIMIENTO_DISCAPACIDAD_HEADERS = [
   'ESTUDIANTE REGULAR',
   'CARRERA',
   'CICLO',
+  'SECCIÓN',
   'TURNO',
   'OBSERVACIONES',
   'FECHA REGISTRO',
@@ -66,6 +70,7 @@ const SEGUIMIENTO_GESTANTE_HEADERS = [
   'ESTUDIANTE REGULAR',
   'CARRERA',
   'CICLO',
+  'SECCIÓN',
   'TURNO',
   'CONTROL PRENATAL',
   'OBSERVACIONES',
@@ -83,6 +88,7 @@ const GESTANTES_HEADERS = [
   'CELULAR',
   'CORREO',
   'OBSERVACIONES',
+  'FECHA REGISTRO',
 ]
 
 const USUARIOS_HEADERS = [
@@ -124,8 +130,6 @@ const CAFETERIA_SUPERVISION_HEADERS = [
   'TIEMPO SERVICIO',
   'CALIDAD PRECIO',
   'PRECIOS COMPETITIVOS',
-  'PRODUCTOS LOCALES',
-  'RECICLA RESIDUOS',
   'ESTADO EQUIPAMIENTO',
   'OBSERVACIONES',
   'ESTADO',
@@ -156,6 +160,7 @@ const SURVEY_DATOS_CLINICOS_HEADERS = [
   'SEXO',
   'DNI',
   'CELULAR',
+  'CORREO ELECTRONICO',
   'DOMICILIO',
   'NACIONALIDAD',
   'TIPO SEGURO',
@@ -211,6 +216,7 @@ const SURVEY_SATISFACCION_HEADERS = [
   'PERIODO',
   'CONFIG_ID',
   'REGISTRADO EN',
+  'CORREO ELECTRONICO',
   'NOMBRES APELLIDOS',
   'CARRERA PROFESIONAL',
   'CICLO',
@@ -225,6 +231,7 @@ const ACCESO_HEADERS = ['Usuario', 'Nombre', 'Contraseña']
 
 const CACHE_EXPIRATION_SECONDS = 600
 const CACHE_VERSION_KEY = 'BACKEND_CACHE_VERSION'
+const DEFAULT_ACADEMIC_PERIOD = '2026 - II'
 
 function getCache() {
   return CacheService.getScriptCache()
@@ -388,6 +395,8 @@ function processPostAction(
       )
     case 'crearUsuario':
       return handleCrearUsuario(data, usuariosSheet, atencionesSheet, timestamp)
+    case 'actualizarUsuario':
+      return handleActualizarUsuario(data, usuariosSheet, timestamp)
     case 'guardarDiscapacidad':
       return handleGuardarDiscapacidad(data, usuariosSheet, timestamp)
     case 'guardarGestante':
@@ -420,12 +429,7 @@ function processPostAction(
         cafeteriaSupervisionSheet,
         timestamp,
       )
-    case 'actualizarSupervisionCafeteria':
-      return handleActualizarSupervisionCafeteria(
-        data,
-        cafeteriaSupervisionSheet,
-        timestamp,
-      )
+
     case 'eliminarSupervisionCafeteria':
       return handleEliminarSupervisionCafeteria(
         data,
@@ -444,6 +448,8 @@ function processPostAction(
       return handleActualizarAtencion(data, atencionesSheet, timestamp)
     case 'enviarConstanciaAtencion':
       return handleEnviarConstanciaAtencion(data, atencionesSheet, timestamp)
+    case 'exportarReporte':
+      return handleExportarReporte(data, spreadsheet, timestamp)
     case 'login':
       return handleLoginAcceso(data, spreadsheet, timestamp)
 
@@ -552,6 +558,130 @@ function handleCrearUsuario(data, usuariosSheet, atencionesSheet, timestamp) {
   }
 }
 
+function handleActualizarUsuario(data, usuariosSheet, timestamp) {
+  const usuarioId = String(data.usuarioId || data.id || '').trim()
+  const dni = String(data.dni || '').trim()
+
+  if (!usuarioId && !dni) {
+    return {
+      success: false,
+      action: 'actualizarUsuario',
+      message: 'Usuario ID o DNI es requerido',
+      timestamp,
+    }
+  }
+
+  const headers = usuariosSheet
+    .getRange(1, 1, 1, USUARIOS_HEADERS.length)
+    .getValues()[0]
+    .map((header) => String(header || '').trim())
+
+  const idIndex = headers.indexOf('ID Usuario')
+  const dniIndex = headers.indexOf('DNI')
+
+  const lastRow = usuariosSheet.getLastRow()
+  if (lastRow <= 1) {
+    return {
+      success: false,
+      action: 'actualizarUsuario',
+      message: 'No hay usuarios registrados',
+      timestamp,
+    }
+  }
+
+  const rows = usuariosSheet
+    .getRange(2, 1, lastRow - 1, USUARIOS_HEADERS.length)
+    .getValues()
+
+  let targetRow = -1
+  let targetRowValues = null
+  for (let i = 0; i < rows.length; i += 1) {
+    const row = rows[i]
+    const rowId = String(row[idIndex] || '').trim()
+    const rowDni = String(row[dniIndex] || '').trim()
+    const matches =
+      (usuarioId && rowId === usuarioId) ||
+      (!usuarioId && dni && rowDni === dni)
+
+    if (matches) {
+      targetRow = i + 2
+      targetRowValues = row
+      break
+    }
+  }
+
+  if (targetRow === -1 || !targetRowValues) {
+    return {
+      success: false,
+      action: 'actualizarUsuario',
+      message: 'Usuario no encontrado para actualizar',
+      timestamp,
+    }
+  }
+
+  if (dni) {
+    const hasDuplicateDni = rows.some((row, index) => {
+      const rowNumber = index + 2
+      if (rowNumber === targetRow) {
+        return false
+      }
+      return String(row[dniIndex] || '').trim() === dni
+    })
+
+    if (hasDuplicateDni) {
+      return {
+        success: false,
+        action: 'actualizarUsuario',
+        message: 'Ya existe otro usuario con este DNI',
+        timestamp,
+      }
+    }
+  }
+
+  const fullName = String(
+    data.nombreCompleto ||
+      `${data.apellidos || ''} ${data.nombres || ''}`.trim() ||
+      targetRowValues[1] ||
+      '',
+  )
+
+  const updatedRow = [
+    String(usuarioId || targetRowValues[0] || ''),
+    fullName,
+    String(data.dni || targetRowValues[2] || ''),
+    String(data.edad || targetRowValues[3] || ''),
+    normalizeSexForSheet(data.sexo || targetRowValues[4] || ''),
+    String(data.correoElectronico || data.email || targetRowValues[5] || ''),
+    String(data.telefono || targetRowValues[6] || ''),
+    String(data.nacionalidad || targetRowValues[7] || ''),
+    String(data.rol || targetRowValues[8] || ''),
+    String(data.carrera || targetRowValues[9] || ''),
+    String(data.ciclo || targetRowValues[10] || ''),
+    String(data.seccion || targetRowValues[11] || ''),
+    String(data.areaDepartamento || targetRowValues[12] || ''),
+    String(data.cargo || targetRowValues[13] || ''),
+    String(data.viviendoCon || targetRowValues[14] || ''),
+    String(data.tipoSeguro || targetRowValues[15] || ''),
+    String(data.isPregnant || targetRowValues[16] || 'No'),
+    String(data.hasDisability || targetRowValues[17] || 'No'),
+    timestamp,
+  ]
+
+  usuariosSheet
+    .getRange(targetRow, 1, 1, USUARIOS_HEADERS.length)
+    .setValues([updatedRow])
+
+  invalidateCache()
+
+  return {
+    success: true,
+    action: 'actualizarUsuario',
+    message: 'Usuario actualizado correctamente',
+    timestamp,
+    usuarioId: updatedRow[0],
+  }
+}
+
 function handleRegistrarAtencionCompleta(
   data,
   atencionesSheet,
@@ -582,6 +712,7 @@ function handleRegistrarAtencionCompleta(
   }
 
   const usuarioId = createNewUsuario(data, usuariosSheet, timestamp)
+  ensureSheetHeader(atencionesSheet, 'HORA DE SALIDA')
   const headers = atencionesSheet
     .getRange(1, 1, 1, ATENCIONES_HEADERS.length)
     .getValues()[0]
@@ -606,6 +737,7 @@ function handleRegistrarAtencionCompleta(
   const rowValuesMap = {
     'N° ORDEN': orderNumber,
     'FECHA DE ATENCIÓN': data.fechaAtencion || timestamp,
+    'HORA DE SALIDA': formatSheetTime(data.horaSalida || timestamp),
     'ID Usuario': usuarioId,
     'Nombre Completo':
       data.nombreCompleto ||
@@ -617,6 +749,7 @@ function handleRegistrarAtencionCompleta(
     PROGRAMA: data.programa || data.carrera || '',
     CICLO: data.ciclo || '',
     PERIODO: data.periodo || '',
+    SECCIÓN: data.seccion || '',
     'MOTIVO DE ATENCIÓN': data.motivoAtencion || '',
     'ÁREA PROBLEMÁTICA PRINCIPAL': String(
       data.areaProblematica || data.areaProblematic || '',
@@ -778,20 +911,6 @@ function handleRegistrarSupervisionCafeteria(data, cafeteriaSheet, timestamp) {
           : '',
     ),
     String(
-      data.productosLocales === true
-        ? 'SI'
-        : data.productosLocales === false
-          ? 'NO'
-          : '',
-    ),
-    String(
-      data.reciclaResiduos === true
-        ? 'SI'
-        : data.reciclaResiduos === false
-          ? 'NO'
-          : '',
-    ),
-    String(
       data.estadoEquipamiento === true
         ? 'SI'
         : data.estadoEquipamiento === false
@@ -812,212 +931,6 @@ function handleRegistrarSupervisionCafeteria(data, cafeteriaSheet, timestamp) {
     success: true,
     action: 'registrarSupervisionCafeteria',
     message: 'Supervisión guardada correctamente',
-    timestamp,
-    id: recordId,
-  }
-}
-
-function handleActualizarSupervisionCafeteria(data, cafeteriaSheet, timestamp) {
-  const recordId = String(data.id || '').trim()
-  if (!recordId) {
-    return {
-      success: false,
-      action: 'actualizarSupervisionCafeteria',
-      message: 'Id de supervisión es requerido para actualizar.',
-      timestamp,
-    }
-  }
-
-  const headers = cafeteriaSheet
-    .getRange(1, 1, 1, CAFETERIA_SUPERVISION_HEADERS.length)
-    .getValues()[0]
-    .map((header) => String(header).trim())
-  const headerIndex = headers.reduce((map, header, index) => {
-    map[header] = index
-    return map
-  }, {})
-
-  const rowsCount = cafeteriaSheet.getLastRow() - 1
-  if (rowsCount <= 0) {
-    return {
-      success: false,
-      action: 'actualizarSupervisionCafeteria',
-      message: 'No se encontró ninguna supervisión para actualizar.',
-      timestamp,
-    }
-  }
-
-  const rows = cafeteriaSheet
-    .getRange(2, 1, rowsCount, CAFETERIA_SUPERVISION_HEADERS.length)
-    .getValues()
-
-  const newPeriodo = String(data.periodo || '')
-    .trim()
-    .toLowerCase()
-  let foundRowIndex = null
-  for (let i = 0; i < rows.length; i += 1) {
-    const rowId = String(rows[i][headerIndex['ID']] || '').trim()
-    const existingPeriodo = String(rows[i][headerIndex['PERIODO']] || '')
-      .trim()
-      .toLowerCase()
-
-    if (rowId === recordId) {
-      foundRowIndex = i + 2
-      continue
-    }
-
-    if (newPeriodo && existingPeriodo === newPeriodo) {
-      return {
-        success: false,
-        action: 'actualizarSupervisionCafeteria',
-        message: 'Ya existe otra supervisión con ese periodo.',
-        timestamp,
-      }
-    }
-  }
-
-  if (!foundRowIndex) {
-    return {
-      success: false,
-      action: 'actualizarSupervisionCafeteria',
-      message: 'Supervisión no encontrada para actualizar.',
-      timestamp,
-    }
-  }
-
-  const existingRow = cafeteriaSheet
-    .getRange(foundRowIndex, 1, 1, CAFETERIA_SUPERVISION_HEADERS.length)
-    .getValues()[0]
-
-  const formattedFecha = formatSheetDate(
-    String(data.fecha || existingRow[headerIndex['FECHA']] || '').trim(),
-  )
-  const formattedHora = formatSheetTime(
-    String(data.hora || existingRow[headerIndex['HORA']] || '').trim(),
-  )
-  const formattedRegistro =
-    formatDateTime(existingRow[headerIndex['REGISTRADO EN']]) ||
-    formatDateTime(timestamp)
-
-  const updatedRow = [
-    recordId,
-    formattedFecha,
-    formattedHora,
-    String(data.periodo || existingRow[headerIndex['PERIODO']] || '').trim(),
-    String(
-      data.concesionario || existingRow[headerIndex['CONCESIONARIO']] || '',
-    ).trim(),
-    String(
-      data.supervisor || existingRow[headerIndex['SUPERVISOR']] || '',
-    ).trim(),
-    String(
-      data.higieneBasica === true
-        ? 'SI'
-        : data.higieneBasica === false
-          ? 'NO'
-          : existingRow[headerIndex['HIGIENE BASICA']],
-    ),
-    String(
-      data.limpiezaAmbiente === true
-        ? 'SI'
-        : data.limpiezaAmbiente === false
-          ? 'NO'
-          : existingRow[headerIndex['LIMPIEZA AMBIENTE']],
-    ),
-    String(
-      data.signosETA === true
-        ? 'SI'
-        : data.signosETA === false
-          ? 'NO'
-          : existingRow[headerIndex['SIGNOS ETA']],
-    ),
-    String(
-      data.calidadVariado === true
-        ? 'SI'
-        : data.calidadVariado === false
-          ? 'NO'
-          : existingRow[headerIndex['CALIDAD VARIADO']],
-    ),
-    String(
-      data.fechaVencimiento === true
-        ? 'SI'
-        : data.fechaVencimiento === false
-          ? 'NO'
-          : existingRow[headerIndex['FECHA VENCIMIENTO']],
-    ),
-    String(
-      data.conservacionAlimentos === true
-        ? 'SI'
-        : data.conservacionAlimentos === false
-          ? 'NO'
-          : existingRow[headerIndex['CONSERVACION ALIMENTOS']],
-    ),
-    String(
-      data.amabilidad === true
-        ? 'SI'
-        : data.amabilidad === false
-          ? 'NO'
-          : existingRow[headerIndex['AMABILIDAD']],
-    ),
-    String(
-      data.tiempoServicio === true
-        ? 'SI'
-        : data.tiempoServicio === false
-          ? 'NO'
-          : existingRow[headerIndex['TIEMPO SERVICIO']],
-    ),
-    String(
-      data.calidadPrecio === true
-        ? 'SI'
-        : data.calidadPrecio === false
-          ? 'NO'
-          : existingRow[headerIndex['CALIDAD PRECIO']],
-    ),
-    String(
-      data.preciosCompetitivos === true
-        ? 'SI'
-        : data.preciosCompetitivos === false
-          ? 'NO'
-          : existingRow[headerIndex['PRECIOS COMPETITIVOS']],
-    ),
-    String(
-      data.productosLocales === true
-        ? 'SI'
-        : data.productosLocales === false
-          ? 'NO'
-          : existingRow[headerIndex['PRODUCTOS LOCALES']],
-    ),
-    String(
-      data.reciclaResiduos === true
-        ? 'SI'
-        : data.reciclaResiduos === false
-          ? 'NO'
-          : existingRow[headerIndex['RECICLA RESIDUOS']],
-    ),
-    String(
-      data.estadoEquipamiento === true
-        ? 'SI'
-        : data.estadoEquipamiento === false
-          ? 'NO'
-          : existingRow[headerIndex['ESTADO EQUIPAMIENTO']],
-    ),
-    String(
-      data.observaciones || existingRow[headerIndex['OBSERVACIONES']] || '',
-    ).trim(),
-    String(data.aprobado || existingRow[headerIndex['ESTADO']] || '').trim(),
-    formattedRegistro,
-  ]
-
-  cafeteriaSheet
-    .getRange(foundRowIndex, 1, 1, updatedRow.length)
-    .setValues([updatedRow])
-
-  invalidateCache()
-
-  return {
-    success: true,
-    action: 'actualizarSupervisionCafeteria',
-    message: 'Supervisión actualizada correctamente',
     timestamp,
     id: recordId,
   }
@@ -1104,6 +1017,7 @@ function handleRegistrarAtencionSolo(
     }
   }
 
+  ensureSheetHeader(atencionesSheet, 'HORA DE SALIDA')
   const headers = atencionesSheet
     .getRange(1, 1, 1, ATENCIONES_HEADERS.length)
     .getValues()[0]
@@ -1128,6 +1042,7 @@ function handleRegistrarAtencionSolo(
   const rowValuesMap = {
     'N° ORDEN': orderNumber,
     'FECHA DE ATENCIÓN': data.fechaAtencion || timestamp,
+    'HORA DE SALIDA': formatSheetTime(timestamp),
     'ID Usuario': usuarioId,
     'Nombre Completo':
       data.nombreCompleto ||
@@ -1139,6 +1054,7 @@ function handleRegistrarAtencionSolo(
     PROGRAMA: data.programa || data.carrera || '',
     CICLO: data.ciclo || '',
     PERIODO: data.periodo || '',
+    SECCIÓN: data.seccion || '',
     'MOTIVO DE ATENCIÓN': data.motivoAtencion || '',
     'ÁREA PROBLEMÁTICA PRINCIPAL': String(
       data.areaProblematica || data.areaProblematic || '',
@@ -1190,6 +1106,7 @@ function handleActualizarAtencion(data, atencionesSheet, timestamp) {
     }
   }
 
+  ensureSheetHeader(atencionesSheet, 'HORA DE SALIDA')
   const headers = atencionesSheet
     .getRange(1, 1, 1, atencionesSheet.getLastColumn())
     .getValues()[0]
@@ -1229,10 +1146,19 @@ function handleActualizarAtencion(data, atencionesSheet, timestamp) {
   const existingRow = atencionesSheet
     .getRange(foundRowIndex, 1, 1, atencionesSheet.getLastColumn())
     .getValues()[0]
-  existingRow[headerIndex['OBSERVACIONES']] = String(
-    data.observaciones || '',
-  ).trim()
-  existingRow[headerIndex['RESULTADO']] = String(data.resultado || '').trim()
+  if (Object.prototype.hasOwnProperty.call(data, 'observaciones')) {
+    existingRow[headerIndex['OBSERVACIONES']] = String(
+      data.observaciones || '',
+    ).trim()
+  }
+  if (Object.prototype.hasOwnProperty.call(data, 'resultado')) {
+    existingRow[headerIndex['RESULTADO']] = String(data.resultado || '').trim()
+  }
+  if (Object.prototype.hasOwnProperty.call(data, 'horaSalida')) {
+    existingRow[headerIndex['HORA DE SALIDA']] = String(
+      data.horaSalida || '',
+    ).trim()
+  }
 
   atencionesSheet
     .getRange(foundRowIndex, 1, 1, existingRow.length)
@@ -1343,6 +1269,7 @@ function handleEnviarConstanciaAtencion(data, atencionesSheet, timestamp) {
       <div style="background:#f5f3ff; padding:15px; border-radius:10px; margin:20px 0;">
         <p style="margin:5px 0;"><strong>Estudiante:</strong> ${String(data.nombreCompleto || '').trim() || '—'}</p>
         <p style="margin:5px 0;"><strong>DNI:</strong> ${String(data.dni || '').trim() || '—'}</p>
+        <p style="margin:5px 0;"><strong>Hora de salida:</strong> ${String(data.horaSalida || '').trim() || '—'}</p>
         <p style="margin:5px 0;"><strong>Programa:</strong> ${String(data.programa || '').trim() || '—'}</p>
         <p style="margin:5px 0;"><strong>Ciclo:</strong> ${String(data.ciclo || '').trim() || '—'}</p>
         <p style="margin:5px 0;"><strong>Sección:</strong> ${String(data.seccion || '').trim() || '—'}</p>
@@ -1396,6 +1323,303 @@ function handleEnviarConstanciaAtencion(data, atencionesSheet, timestamp) {
   }
 }
 
+function parseReportDate(value) {
+  const trimmed = String(value || '').trim()
+  if (!trimmed) {
+    return null
+  }
+
+  const dmyMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/)
+  if (dmyMatch) {
+    const day = Number(dmyMatch[1])
+    const month = Number(dmyMatch[2]) - 1
+    const year = Number(dmyMatch[3])
+    const date = new Date(year, month, day)
+    return Number.isNaN(date.getTime()) ? null : date
+  }
+
+  const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (isoMatch) {
+    const year = Number(isoMatch[1])
+    const month = Number(isoMatch[2]) - 1
+    const day = Number(isoMatch[3])
+    const date = new Date(year, month, day)
+    return Number.isNaN(date.getTime()) ? null : date
+  }
+
+  const parsed = new Date(trimmed)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function isReportDateInRange(dateValue, range) {
+  if (!range || range === 'Todos') {
+    return true
+  }
+
+  const date = parseReportDate(dateValue)
+  if (!date) {
+    return false
+  }
+
+  const today = new Date()
+  const startOfToday = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+  )
+
+  if (range === 'Últimos 7 días') {
+    const sevenDaysAgo = new Date(startOfToday)
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6)
+    return date >= sevenDaysAgo && date <= startOfToday
+  }
+
+  if (range === 'Este mes') {
+    return (
+      date.getFullYear() === startOfToday.getFullYear() &&
+      date.getMonth() === startOfToday.getMonth()
+    )
+  }
+
+  if (range === 'Semestre actual') {
+    const month = startOfToday.getMonth()
+    const semesterStart =
+      month < 6
+        ? new Date(startOfToday.getFullYear(), 0, 1)
+        : new Date(startOfToday.getFullYear(), 6, 1)
+    const semesterEnd =
+      month < 6
+        ? new Date(startOfToday.getFullYear(), 5, 30)
+        : new Date(startOfToday.getFullYear(), 11, 31)
+    return date >= semesterStart && date <= semesterEnd
+  }
+
+  return true
+}
+
+function isReportDateInExportRange(dateValue, range, startDate, endDate) {
+  if (range !== 'Personalizado') {
+    return isReportDateInRange(dateValue, range)
+  }
+
+  const date = parseReportDate(dateValue)
+  if (!date) {
+    return false
+  }
+
+  const start = parseReportDate(startDate)
+  const end = parseReportDate(endDate)
+
+  if (start && end) {
+    return date >= start && date <= end
+  }
+
+  if (start) {
+    return date >= start
+  }
+
+  if (end) {
+    return date <= end
+  }
+
+  return true
+}
+
+function handleExportarReporte(data, spreadsheet, timestamp) {
+  const atencionesSheet = getOrCreateSheet(
+    spreadsheet,
+    SHEET_NAME_ATENCIONES,
+    ATENCIONES_HEADERS,
+  )
+  const seguimientoAtencionSheet = getOrCreateSheet(
+    spreadsheet,
+    'Seguimiento Atencion',
+    SEGUIMIENTO_ATENCION_HEADERS,
+  )
+  const usuariosSheet = getOrCreateSheet(
+    spreadsheet,
+    SHEET_NAME_USUARIOS,
+    USUARIOS_HEADERS,
+  )
+
+  const userHeaders = usuariosSheet
+    .getRange(1, 1, 1, usuariosSheet.getLastColumn())
+    .getValues()[0]
+    .map((header) => String(header).trim())
+  const userHeaderIndex = userHeaders.reduce((map, header, index) => {
+    map[header] = index
+    return map
+  }, {})
+
+  const userRowsCount = usuariosSheet.getLastRow() - 1
+  const userRows =
+    userRowsCount > 0
+      ? usuariosSheet
+          .getRange(2, 1, userRowsCount, usuariosSheet.getLastColumn())
+          .getValues()
+      : []
+
+  const usersById = {}
+  userRows.forEach((row) => {
+    const userId = String(row[userHeaderIndex['ID Usuario']] || '').trim()
+    if (!userId) {
+      return
+    }
+    usersById[userId] = row
+  })
+
+  const attendances = findAllAttendancesWithUserType(
+    usuariosSheet,
+    atencionesSheet,
+    seguimientoAtencionSheet,
+  )
+
+  const filterType = String(data.filterType || '').trim()
+  const filterStatus = String(data.filterStatus || '').trim()
+  const filterFinalizedFollowUp = String(data.filterFinalizedFollowUp || '')
+  const filterSearch = String(data.filterSearch || '')
+    .trim()
+    .toLowerCase()
+  const filterDateRange = String(data.filterDateRange || 'Todos').trim()
+  const exportRange = String(data.exportRange || 'Todos').trim()
+  const exportStartDate = String(data.exportStartDate || '').trim()
+  const exportEndDate = String(data.exportEndDate || '').trim()
+  const includeStudentInfo = data.includeStudentInfo !== false
+  const includeContactInfo = data.includeContactInfo !== false
+  const includeGestationDisability = data.includeGestationDisability === true
+  const includeFollowUps = data.includeFollowUps !== false
+
+  const filtered = attendances.filter((attendance) => {
+    const normalizedUserType = String(attendance.userType || '')
+      .trim()
+      .toLowerCase()
+    const matchesType =
+      !filterType ||
+      filterType === 'Todos' ||
+      (filterType === 'Estudiantes' &&
+        normalizedUserType.includes('estudiante')) ||
+      (filterType === 'Administrativos' &&
+        normalizedUserType.includes('administr')) ||
+      String(attendance.userType || '') === filterType
+
+    const matchesStatus =
+      !filterStatus ||
+      filterStatus === 'Todos' ||
+      String(attendance.resultado || '') === filterStatus
+
+    const followUpCount =
+      attendance.followUps && attendance.followUps.length
+        ? attendance.followUps.length
+        : 0
+    const matchesFinalizedFollowUp =
+      filterStatus !== 'Finalizado' ||
+      !filterFinalizedFollowUp ||
+      filterFinalizedFollowUp === 'Todos' ||
+      (filterFinalizedFollowUp === 'Con seguimiento' && followUpCount > 0) ||
+      (filterFinalizedFollowUp === 'Sin seguimiento' && followUpCount === 0)
+
+    const matchesDateRange = isReportDateInRange(
+      attendance.fechaAtencion,
+      filterDateRange,
+    )
+
+    const matchesSearch =
+      !filterSearch ||
+      [
+        attendance.nombreCompleto,
+        attendance.correoElectronico,
+        attendance.dni,
+      ].some((field) =>
+        String(field || '')
+          .toLowerCase()
+          .includes(filterSearch),
+      )
+
+    return (
+      matchesType &&
+      matchesStatus &&
+      matchesFinalizedFollowUp &&
+      matchesDateRange &&
+      matchesSearch
+    )
+  })
+
+  const exportable = filtered.filter((attendance) =>
+    isReportDateInExportRange(
+      attendance.fechaAtencion,
+      exportRange,
+      exportStartDate,
+      exportEndDate,
+    ),
+  )
+
+  const reportRows = exportable.map((attendance) => {
+    const userRow = usersById[attendance.usuarioId] || []
+    const row = {
+      Orden: attendance.orden,
+      'Fecha atención': attendance.fechaAtencion,
+      'Tipo usuario': attendance.userType,
+      'Nombre completo': attendance.nombreCompleto,
+      DNI: attendance.dni,
+      Programa: attendance.programa,
+      Ciclo: attendance.ciclo,
+      Sección: attendance.seccion,
+      Periodo: attendance.periodo,
+      'Motivo de atención': attendance.motivoAtencion,
+      'Área problemática': attendance.areaProblematica,
+      Resultado: attendance.resultado,
+      Observaciones: attendance.observaciones,
+    }
+
+    if (includeContactInfo) {
+      row['Correo electrónico'] = attendance.correoElectronico
+    }
+
+    if (includeStudentInfo && userRow.length > 0) {
+      row.Edad = String(userRow[userHeaderIndex['Edad']] || '')
+      row.Sexo = String(userRow[userHeaderIndex['Sexo']] || '')
+      row.Nacionalidad = String(userRow[userHeaderIndex['Nacionalidad']] || '')
+      row['Área / Departamento'] = String(
+        userRow[userHeaderIndex['Área / Departamento']] || '',
+      )
+      row.Cargo = String(userRow[userHeaderIndex['Cargo']] || '')
+    }
+
+    if (includeGestationDisability && userRow.length > 0) {
+      row.Embarazada = String(userRow[userHeaderIndex['Embarazada']] || '')
+      row.Discapacidad = String(userRow[userHeaderIndex['Discapacidad']] || '')
+    }
+
+    if (includeFollowUps) {
+      const followUps = attendance.followUps || []
+      row.Seguimientos = followUps
+        .map((followUp) => {
+          const base = [
+            followUp.fechaSeguimiento,
+            followUp.hora,
+            followUp.asistio,
+            followUp.nivelCompromiso,
+            followUp.observaciones,
+          ]
+            .filter(Boolean)
+            .join(' | ')
+          return base || ''
+        })
+        .filter((text) => text)
+        .join(' / ')
+    }
+
+    return row
+  })
+
+  return {
+    success: true,
+    action: 'exportarReporte',
+    timestamp,
+    report: reportRows,
+  }
+}
+
 function handleGuardarDiscapacidad(data, usuariosSheet, timestamp) {
   const usuarioId = String(data.usuarioId || data.id || '').trim()
   if (!usuarioId) {
@@ -1442,6 +1666,7 @@ function handleGuardarDiscapacidad(data, usuariosSheet, timestamp) {
       String(data.disabilityType || ''),
       String(data.conadisCardNumber || ''),
       String(data.observaciones || ''),
+      timestamp,
     ]
 
     const headers = discapacidadSheet
@@ -1541,6 +1766,7 @@ function handleGuardarGestante(data, usuariosSheet, timestamp) {
       String(data.telefono || ''),
       String(data.correoElectronico || ''),
       String(data.observaciones || ''),
+      timestamp,
     ]
 
     const headers = gestantesSheet
@@ -1665,6 +1891,7 @@ function handleGuardarSeguimientoDiscapacidad(data, timestamp) {
     String(data.estudianteRegular || ''),
     String(data.carrera || data.programa || ''),
     String(data.ciclo || ''),
+    String(data.seccion || ''),
     String(data.turno || ''),
     String(data.observaciones || ''),
     existingFechaRegistro || now,
@@ -1767,6 +1994,7 @@ function handleGuardarSeguimientoGestante(data, timestamp) {
     String(data.estudianteRegular || ''),
     String(data.carrera || ''),
     String(data.ciclo || ''),
+    String(data.seccion || ''),
     String(data.turno || ''),
     String(data.controlPrenatal || ''),
     String(data.observaciones || ''),
@@ -1951,7 +2179,7 @@ function createNewUsuario(data, usuariosSheet, timestamp) {
     fullName,
     String(data.dni || ''),
     String(data.edad || ''),
-    String(data.sexo || ''),
+    normalizeSexForSheet(data.sexo || ''),
     String(data.correoElectronico || data.email || ''),
     String(data.telefono || ''),
     String(data.nacionalidad || ''),
@@ -1978,18 +2206,251 @@ function doGet(e) {
 
   console.log('GET action:', action)
 
+  if (action === 'listarUsuariosReporte') {
+    const spreadsheet = SpreadsheetApp.openById(SHEET_ID)
+    const usuariosSheet = getOrCreateSheet(
+      spreadsheet,
+      SHEET_NAME_USUARIOS,
+      USUARIOS_HEADERS,
+    )
+    const role = String(e.parameter.role || '')
+      .trim()
+      .toLowerCase()
+    const onlyStudents = isTruthyParam(e.parameter.onlyStudents)
+    const carrera = String(e.parameter.carrera || '').trim()
+    const ciclo = String(e.parameter.ciclo || '').trim()
+    const sexo = String(e.parameter.sexo || '').trim()
+    const users = listSheetObjects(usuariosSheet, USUARIOS_HEADERS)
+      .map((user) => {
+        const formatted = { ...user }
+        formatted['Fecha de última actualización'] = formatDateTime(
+          user['Fecha de última actualización'] || '',
+        )
+        return formatted
+      })
+      .filter((user) => {
+        const userRole = String(user.Rol || '')
+          .trim()
+          .toLowerCase()
+        const matchesRole = (() => {
+          if (role === 'admin') {
+            return userRole.includes('admin')
+          }
+          if (role === 'estudiantes' || onlyStudents) {
+            return userRole.includes('estudiante')
+          }
+          return true
+        })()
+        const matchesCarrera =
+          !carrera ||
+          carrera === 'Todos' ||
+          String(user.Carrera || '').trim() === carrera
+        const matchesCiclo =
+          !ciclo ||
+          ciclo === 'Todos' ||
+          String(user.Ciclo || '').trim() === ciclo
+        const matchesSexo =
+          !sexo ||
+          sexo === 'Todos' ||
+          normalizeSexFilter(user.Sexo || '') === normalizeSexFilter(sexo)
+
+        return matchesRole && matchesCarrera && matchesCiclo && matchesSexo
+      })
+    return ContentService.createTextOutput(
+      JSON.stringify({ success: true, action, users }),
+    ).setMimeType(ContentService.MimeType.JSON)
+  }
+
+  if (action === 'listarConsultasReporte') {
+    const spreadsheet = SpreadsheetApp.openById(SHEET_ID)
+    const atencionesSheet = getOrCreateSheet(
+      spreadsheet,
+      SHEET_NAME_ATENCIONES,
+      ATENCIONES_HEADERS,
+    )
+    const seguimientoAtencionSheet = getOrCreateSheet(
+      spreadsheet,
+      'Seguimiento Atencion',
+      SEGUIMIENTO_ATENCION_HEADERS,
+    )
+    const usuariosSheet = getOrCreateSheet(
+      spreadsheet,
+      SHEET_NAME_USUARIOS,
+      USUARIOS_HEADERS,
+    )
+    const attendances = findAllAttendancesWithUserType(
+      usuariosSheet,
+      atencionesSheet,
+      seguimientoAtencionSheet,
+    )
+    const dateRange = String(e.parameter.dateRange || 'Todos').trim()
+    const startDate = String(e.parameter.startDate || '').trim()
+    const endDate = String(e.parameter.endDate || '').trim()
+    const onlyFollowUps = isTruthyParam(e.parameter.onlyFollowUps)
+    const role = String(e.parameter.role || '')
+      .trim()
+      .toLowerCase()
+    const ciclo = String(e.parameter.ciclo || '').trim()
+    const programa = String(e.parameter.programa || '').trim()
+    const periodo = String(e.parameter.periodo || '').trim()
+
+    const filteredAttendances = attendances.filter((attendance) => {
+      const matchesDateRange =
+        dateRange === 'Personalizado'
+          ? isReportDateInExportRange(
+              attendance.fechaAtencion,
+              dateRange,
+              startDate,
+              endDate,
+            )
+          : isReportDateInRange(attendance.fechaAtencion, dateRange)
+
+      const matchesFollowUps =
+        !onlyFollowUps || (attendance.followUps || []).length > 0
+      const userType = String(attendance.userType || '')
+        .trim()
+        .toLowerCase()
+      const matchesRole = (() => {
+        if (!role || role === 'todos') {
+          return true
+        }
+        if (role === 'estudiantes') {
+          return userType.includes('estudiante')
+        }
+        if (role === 'administrativos') {
+          return userType.includes('administr')
+        }
+        return true
+      })()
+      const matchesCiclo =
+        !ciclo ||
+        ciclo === 'Todos' ||
+        String(attendance.ciclo || '').trim() === ciclo
+      const matchesPrograma =
+        !programa ||
+        programa === 'Todos' ||
+        String(attendance.programa || '').trim() === programa
+      const matchesPeriodo =
+        !periodo ||
+        periodo === 'Todos' ||
+        String(attendance.periodo || '').trim() === periodo
+
+      return (
+        matchesDateRange &&
+        matchesFollowUps &&
+        matchesRole &&
+        matchesCiclo &&
+        matchesPrograma &&
+        matchesPeriodo
+      )
+    })
+    return ContentService.createTextOutput(
+      JSON.stringify({
+        success: true,
+        action,
+        attendances: filteredAttendances,
+      }),
+    ).setMimeType(ContentService.MimeType.JSON)
+  }
+
+  if (action === 'listarGestantesReporte') {
+    const spreadsheet = SpreadsheetApp.openById(SHEET_ID)
+    const gestantesSheet = getOrCreateSheet(
+      spreadsheet,
+      'Gestantes',
+      GESTANTES_HEADERS,
+    )
+    const seguimientoSheet = getOrCreateSheet(
+      spreadsheet,
+      'Seguimiento gestante',
+      SEGUIMIENTO_GESTANTE_HEADERS,
+    )
+
+    const report = buildGestantesReportRows(gestantesSheet, seguimientoSheet)
+    const startDate = String(e.parameter.startDate || '').trim()
+    const endDate = String(e.parameter.endDate || '').trim()
+    const withoutCurrentPeriodFollowUps = isTruthyParam(
+      e.parameter.withoutCurrentPeriodFollowUps,
+    )
+
+    const filteredRows = report.rows.filter((row) => {
+      const matchesDateRange =
+        !startDate && !endDate
+          ? true
+          : isReportDateInExportRange(
+              row['FECHA REGISTRO'],
+              'Personalizado',
+              startDate,
+              endDate,
+            )
+      const currentFollowUp = row.followUpsByPeriod[DEFAULT_ACADEMIC_PERIOD]
+      const matchesCurrentPeriod =
+        !withoutCurrentPeriodFollowUps ||
+        !hasMeaningfulFollowUp(currentFollowUp)
+
+      return matchesDateRange && matchesCurrentPeriod
+    })
+
+    return ContentService.createTextOutput(
+      JSON.stringify({
+        success: true,
+        action,
+        gestantes: filteredRows,
+      }),
+    ).setMimeType(ContentService.MimeType.JSON)
+  }
+
+  if (action === 'listarDiscapacidadReporte') {
+    const spreadsheet = SpreadsheetApp.openById(SHEET_ID)
+    const discapacidadSheet = getOrCreateSheet(
+      spreadsheet,
+      'Estudiantes con discapacidad',
+      DISCAPACIDAD_HEADERS,
+    )
+    const seguimientoSheet = getOrCreateSheet(
+      spreadsheet,
+      'Seguimiento discapacidad',
+      SEGUIMIENTO_DISCAPACIDAD_HEADERS,
+    )
+    const usuariosSheet = getOrCreateSheet(
+      spreadsheet,
+      SHEET_NAME_USUARIOS,
+      USUARIOS_HEADERS,
+    )
+    const report = buildDiscapacidadReporteRows(
+      usuariosSheet,
+      discapacidadSheet,
+      seguimientoSheet,
+    )
+    const startDate = String(e.parameter.startDate || '').trim()
+    const endDate = String(e.parameter.endDate || '').trim()
+    const withoutCurrentPeriodFollowUps = isTruthyParam(
+      e.parameter.withoutCurrentPeriodFollowUps,
+    )
+    const filteredRows = report.rows.filter((row) => {
+      const matchesDateRange =
+        !startDate && !endDate
+          ? true
+          : isReportDateInExportRange(
+              row['FECHA REGISTRO'],
+              'Personalizado',
+              startDate,
+              endDate,
+            )
+      const currentFollowUp = row.followUpsByPeriod[DEFAULT_ACADEMIC_PERIOD]
+      const matchesCurrentPeriod =
+        !withoutCurrentPeriodFollowUps ||
+        !hasMeaningfulFollowUp(currentFollowUp)
+
+      return matchesDateRange && matchesCurrentPeriod
+    })
+    return ContentService.createTextOutput(
+      JSON.stringify({ success: true, action, discapacidad: filteredRows }),
+    ).setMimeType(ContentService.MimeType.JSON)
+  }
+
   if (action === 'buscarUsuario') {
     const query = String(e.parameter.query || '').trim()
-    const cached = getCachedResponse(action, query)
-    if (cached) {
-      return ContentService.createTextOutput(
-        JSON.stringify({
-          ...cached,
-          timestamp: new Date().toISOString(),
-        }),
-      ).setMimeType(ContentService.MimeType.JSON)
-    }
-
     const spreadsheet = SpreadsheetApp.openById(SHEET_ID)
     const usuariosSheet = getOrCreateSheet(
       spreadsheet,
@@ -2009,7 +2470,6 @@ function doGet(e) {
       users,
       query,
     }
-    setCachedResponse(action, query, payload)
 
     return ContentService.createTextOutput(
       JSON.stringify({
@@ -2623,6 +3083,47 @@ function formatSheetTime(value) {
   return trimmed
 }
 
+function extractAttendanceTime(value) {
+  const trimmed = String(value || '').trim()
+  if (!trimmed) {
+    return ''
+  }
+
+  const trailingTime = trimmed.match(
+    /(?:,|\s)([0-9]{1,2}:[0-9]{2})(?::[0-9]{2})?$/,
+  )
+  if (trailingTime) {
+    return trailingTime[1].padStart(5, '0')
+  }
+
+  const timeOnly = trimmed.match(/^([0-9]{1,2}:[0-9]{2})(?::[0-9]{2})?$/)
+  if (timeOnly) {
+    return timeOnly[1].padStart(5, '0')
+  }
+
+  return formatSheetTime(trimmed)
+}
+
+function normalizeSexForSheet(value) {
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase()
+
+  if (normalized === 'm' || normalized.startsWith('masc')) {
+    return 'M'
+  }
+
+  if (normalized === 'f' || normalized.startsWith('fem')) {
+    return 'F'
+  }
+
+  return String(value || '').trim()
+}
+
+function normalizeSexFilter(value) {
+  return normalizeSexForSheet(value).toUpperCase()
+}
+
 function findUsers(query, usuariosSheet, atencionesSheet) {
   const queryValue = String(query || '')
     .trim()
@@ -2764,6 +3265,7 @@ function findAttendancesByUsuarioId(
     return []
   }
 
+  ensureSheetHeader(atencionesSheet, 'HORA DE SALIDA')
   const headers = atencionesSheet
     .getRange(1, 1, 1, atencionesSheet.getLastColumn())
     .getValues()[0]
@@ -2788,6 +3290,10 @@ function findAttendancesByUsuarioId(
       fechaAtencion: formatSheetDate(
         row[headerIndex['FECHA DE ATENCIÓN']] || '',
       ),
+      horaSalida: formatSheetTime(
+        row[headerIndex['HORA DE SALIDA']] ||
+          extractAttendanceTime(row[headerIndex['FECHA DE ATENCIÓN']] || ''),
+      ),
       usuarioId: String(row[headerIndex['ID Usuario']] || '').trim(),
       nombreCompleto: String(row[headerIndex['Nombre Completo']] || '').trim(),
       edad: String(row[headerIndex['EDAD']] || '').trim(),
@@ -2799,6 +3305,7 @@ function findAttendancesByUsuarioId(
       programa: String(row[headerIndex['PROGRAMA']] || '').trim(),
       ciclo: String(row[headerIndex['CICLO']] || '').trim(),
       periodo: String(row[headerIndex['PERIODO']] || '').trim(),
+      seccion: String(row[headerIndex['SECCIÓN']] || '').trim(),
       motivoAtencion: String(
         row[headerIndex['MOTIVO DE ATENCIÓN']] || '',
       ).trim(),
@@ -2848,6 +3355,7 @@ function findAllAttendancesWithUserType(
     userRoleById[rowId] = String(row[userHeaderIndex['Rol']] || '').trim()
   }
 
+  ensureSheetHeader(atencionesSheet, 'HORA DE SALIDA')
   const headers = atencionesSheet
     .getRange(1, 1, 1, atencionesSheet.getLastColumn())
     .getValues()[0]
@@ -2879,12 +3387,17 @@ function findAllAttendancesWithUserType(
       horaAtencion: formatSheetTime(
         row[headerIndex['FECHA DE ATENCIÓN']] || '',
       ),
+      horaSalida: formatSheetTime(
+        row[headerIndex['HORA DE SALIDA']] ||
+          extractAttendanceTime(row[headerIndex['FECHA DE ATENCIÓN']] || ''),
+      ),
       usuarioId,
       nombreCompleto: String(row[headerIndex['Nombre Completo']] || '').trim(),
       dni: String(row[headerIndex['DNI']] || '').trim(),
       programa: String(row[headerIndex['PROGRAMA']] || '').trim(),
       ciclo: String(row[headerIndex['CICLO']] || '').trim(),
       periodo: String(row[headerIndex['PERIODO']] || '').trim(),
+      seccion: String(row[headerIndex['SECCIÓN']] || '').trim(),
       motivoAtencion: String(
         row[headerIndex['MOTIVO DE ATENCIÓN']] || '',
       ).trim(),
@@ -3104,6 +3617,7 @@ function findSeguimientoGestanteByUsuarioId(usuarioId, seguimientoSheet) {
 }
 
 function findAttendanceByOrden(orden, atencionesSheet) {
+  ensureSheetHeader(atencionesSheet, 'HORA DE SALIDA')
   const headers = atencionesSheet
     .getRange(1, 1, 1, atencionesSheet.getLastColumn())
     .getValues()[0]
@@ -3130,6 +3644,10 @@ function findAttendanceByOrden(orden, atencionesSheet) {
         orden: rowOrden,
         fechaAtencion: formatSheetDate(
           row[headerIndex['FECHA DE ATENCIÓN']] || '',
+        ),
+        horaSalida: formatSheetTime(
+          row[headerIndex['HORA DE SALIDA']] ||
+            extractAttendanceTime(row[headerIndex['FECHA DE ATENCIÓN']] || ''),
         ),
         usuarioId: String(row[headerIndex['ID Usuario']] || '').trim(),
         nombreCompleto: String(
@@ -3307,6 +3825,7 @@ function handleActualizarSeguimientoAtencion(
     action: 'actualizarSeguimientoAtencion',
     message: 'Seguimiento actualizado correctamente',
     timestamp,
+    idSeguimiento,
   }
 }
 
@@ -3346,6 +3865,7 @@ function handleEliminarSeguimientoAtencion(
     action: 'eliminarSeguimientoAtencion',
     message: 'Seguimiento eliminado correctamente',
     timestamp,
+    idSeguimiento,
   }
 }
 
@@ -3472,10 +3992,6 @@ function findAllCafeteriaSupervisions(cafeteriaSheet) {
     preciosCompetitivos: String(
       row[headerIndex['PRECIOS COMPETITIVOS']] || '',
     ).trim(),
-    productosLocales: String(
-      row[headerIndex['PRODUCTOS LOCALES']] || '',
-    ).trim(),
-    reciclaResiduos: String(row[headerIndex['RECICLA RESIDUOS']] || '').trim(),
     estadoEquipamiento: String(
       row[headerIndex['ESTADO EQUIPAMIENTO']] || '',
     ).trim(),
@@ -3560,6 +4076,188 @@ function buildSheetObject(keys, row) {
   return obj
 }
 
+function listSheetObjects(sheet, headers) {
+  const rowsCount = sheet.getLastRow() - 1
+  if (rowsCount <= 0) {
+    return []
+  }
+  const rows = sheet.getRange(2, 1, rowsCount, headers.length).getValues()
+  return rows.map((row) => buildSheetObject(headers, row))
+}
+
+function isTruthyParam(value) {
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase()
+  return normalized === 'true' || normalized === '1' || normalized === 'si'
+}
+
+function hasMeaningfulFollowUp(followUp) {
+  if (!followUp) {
+    return false
+  }
+
+  return Object.keys(followUp).some((key) => String(followUp[key] || '').trim())
+}
+
+function buildDiscapacidadReporteRows(
+  usuariosSheet,
+  discapacidadSheet,
+  seguimientoSheet,
+) {
+  const usuarios = listSheetObjects(usuariosSheet, USUARIOS_HEADERS)
+  const usuariosById = usuarios.reduce((map, user) => {
+    map[user['ID Usuario']] = user
+    return map
+  }, {})
+
+  const discapacidadRows = listSheetObjects(
+    discapacidadSheet,
+    DISCAPACIDAD_HEADERS,
+  )
+  const seguimientoRows = listSheetObjects(
+    seguimientoSheet,
+    SEGUIMIENTO_DISCAPACIDAD_HEADERS,
+  )
+
+  const periodsSet = new Set()
+  seguimientoRows.forEach((s) => {
+    const p = String(s['PERIODO SEGUIMIENTO'] || '').trim()
+    if (p) periodsSet.add(p)
+  })
+  const periods = Array.from(periodsSet)
+
+  const seguimientosByUser = seguimientoRows.reduce((map, s) => {
+    const id = String(s['ID Usuario'] || '').trim()
+    if (!id) return map
+    map[id] = map[id] || []
+    map[id].push(s)
+    return map
+  }, {})
+
+  const rows = discapacidadRows.map((row) => {
+    const usuarioId = String(row['ID Usuario'] || '').trim()
+    const user = usuariosById[usuarioId] || {}
+    const userSeguimientos = seguimientosByUser[usuarioId] || []
+
+    const followUpsByPeriod = {}
+    periods.forEach((p) => {
+      const fu = userSeguimientos.find(
+        (s) => String(s['PERIODO SEGUIMIENTO'] || '').trim() === p,
+      )
+      if (fu) {
+        followUpsByPeriod[p] = {
+          'Estudiante regular': String(fu['ESTUDIANTE REGULAR'] || '').trim(),
+          Carrera: String(fu['CARRERA'] || '').trim(),
+          Ciclo: String(fu['CICLO'] || '').trim(),
+          Turno: String(fu['TURNO'] || '').trim(),
+          Observacion: String(fu['OBSERVACIONES'] || '').trim(),
+        }
+      } else {
+        followUpsByPeriod[p] = {
+          'Estudiante regular': '',
+          Carrera: '',
+          Ciclo: '',
+          Turno: '',
+          Observacion: '',
+        }
+      }
+    })
+
+    return {
+      'PERIODO REGISTRO': String(row['PERIODO REGISTRO'] || '').trim(),
+      DNI: String(row['DNI'] || user.DNI || '').trim(),
+      NOMBRES: String(row['NOMBRES'] || user['Nombre Completo'] || '').trim(),
+      DISCAPACIDAD: String(row['DISCAPACIDAD'] || '').trim(),
+      'CARNET - CONADIS': String(row['CARNET - CONADIS'] || '').trim(),
+      OBSERVACIONES: String(row['OBSERVACIONES'] || '').trim(),
+      'FECHA REGISTRO': formatDateTime(row['FECHA REGISTRO'] || ''),
+      CELULAR: String(
+        user['Teléfono'] || user['Telefono'] || user['Teléfono'] || '',
+      ).trim(),
+      CORREO: String(user.Email || user['Correo electrónico'] || '').trim(),
+      followUpsByPeriod,
+    }
+  })
+
+  return {
+    periods,
+    rows,
+  }
+}
+
+function buildGestantesReportRows(gestantesSheet, seguimientoSheet) {
+  const gestantes = listSheetObjects(gestantesSheet, GESTANTES_HEADERS)
+  const seguimientos = listSheetObjects(
+    seguimientoSheet,
+    SEGUIMIENTO_GESTANTE_HEADERS,
+  )
+
+  const periodsSet = new Set()
+  seguimientos.forEach((s) => {
+    const p = String(s['PERIODO SEGUIMIENTO'] || '').trim()
+    if (p) periodsSet.add(p)
+  })
+  const periods = Array.from(periodsSet)
+
+  const seguimientosByUser = seguimientos.reduce((map, s) => {
+    const id = String(s['ID Usuario'] || '').trim()
+    if (!id) return map
+    map[id] = map[id] || []
+    map[id].push(s)
+    return map
+  }, {})
+
+  const rows = gestantes.map((g) => {
+    const usuarioId = String(g['ID Usuario'] || '').trim()
+    const userSeguimientos = seguimientosByUser[usuarioId] || []
+
+    const followUpsByPeriod = {}
+    periods.forEach((p) => {
+      const fu = userSeguimientos.find(
+        (s) => String(s['PERIODO SEGUIMIENTO'] || '').trim() === p,
+      )
+      if (fu) {
+        followUpsByPeriod[p] = {
+          'Estudiante regular': String(fu['ESTUDIANTE REGULAR'] || '').trim(),
+          Carrera: String(fu['CARRERA'] || '').trim(),
+          Ciclo: String(fu['CICLO'] || '').trim(),
+          Turno: String(fu['TURNO'] || '').trim(),
+          Observacion: String(fu['OBSERVACIONES'] || '').trim(),
+        }
+      } else {
+        followUpsByPeriod[p] = {
+          'Estudiante regular': '',
+          Carrera: '',
+          Ciclo: '',
+          Turno: '',
+          Observacion: '',
+        }
+      }
+    })
+
+    return {
+      'PERIODO REGISTRADO': String(g['PERIODO REGISTRADO'] || '').trim(),
+      DNI: String(g['DNI'] || '').trim(),
+      NOMBRES: String(g['NOMBRES'] || g['NOMBRE'] || '').trim(),
+      EDAD: String(g['EDAD'] || '').trim(),
+      'CONTROL PRENATAL': String(g['CONTROL PRENATAL'] || '').trim(),
+      'FECHA PROBABLE DE PARTO': formatSheetDate(
+        String(g['FECHA PROBABLE DE PARTO'] || '').trim(),
+      ),
+      CELULAR: String(g['CELULAR'] || '').trim(),
+      CORREO: String(g['CORREO'] || g['CORREO ELECTRONICO'] || '').trim(),
+      'FECHA REGISTRO': formatDateTime(g['FECHA REGISTRO'] || ''),
+      followUpsByPeriod,
+    }
+  })
+
+  return {
+    periods,
+    rows,
+  }
+}
+
 function convertSurveyConfigRow(row) {
   const config = buildSheetObject(
     ['id', 'type', 'period', 'link', 'isOpen', 'createdAt'],
@@ -3587,6 +4285,7 @@ function convertSurveyResponseRow(type, row) {
       'sexo',
       'dni',
       'celular',
+      'correoElectronico',
       'domicilio',
       'nacionalidad',
       'tipoSeguro',
@@ -3642,6 +4341,7 @@ function convertSurveyResponseRow(type, row) {
       'period',
       'configId',
       'registeredAt',
+      'correoElectronico',
       'nombresApellidos',
       'carreraProfesional',
       'ciclo',
@@ -3909,84 +4609,110 @@ function handleSaveSurveyResponse(data, spreadsheet, timestamp) {
     }
   }
 
-  const id = Utilities.getUuid()
-  const values = [id, type, period, configId, timestamp]
+  const shouldUseLock =
+    type === 'DatosClinicos' ||
+    type === 'TamizajeSalud' ||
+    type === 'Satisfaccion'
 
-  if (type === 'DatosClinicos') {
-    values.push(
-      String(data.programa || '').trim(),
-      String(data.ciclo || '').trim(),
-      String(data.seccion || '').trim(),
-      String(data.nombresApellidos || '').trim(),
-      String(data.fechaNacimiento || '').trim(),
-      String(data.edad || '').trim(),
-      String(data.sexo || '').trim(),
-      String(data.dni || '').trim(),
-      String(data.celular || '').trim(),
-      String(data.domicilio || '').trim(),
-      String(data.nacionalidad || '').trim(),
-      String(data.tipoSeguro || '').trim(),
-      String(data.contactoNombres || '').trim(),
-      String(data.contactoCelular || '').trim(),
-      String(data.parentesco || '').trim(),
-      formatBooleanForSheet(data.padeceEnfermedad),
-      String(data.enfermedadNombre || '').trim(),
-      formatBooleanForSheet(data.discapacidad),
-      String(data.discapacidadNombre || '').trim(),
-      formatBooleanForSheet(data.carnetConadis),
-      formatBooleanForSheet(data.tratamientoMedico),
-      String(data.tratamientoNombre || '').trim(),
-      formatBooleanForSheet(data.alergico),
-      String(data.alergicoNombre || '').trim(),
-      formatBooleanForSheet(data.vacunaCovid),
-      String(data.dosisCovid || '').trim(),
-      formatBooleanForSheet(data.embarazada),
-      String(data.fpp || '').trim(),
-      String(data.semanasGestacion || '').trim(),
-    )
-  } else if (type === 'TamizajeSalud') {
-    values.push(
-      String(data.nombresApellidos || '').trim(),
-      String(data.edad || '').trim(),
-      String(data.dni || '').trim(),
-      String(data.celular || '').trim(),
-      String(data.correoElectronico || '').trim(),
-      String(data.programa || '').trim(),
-      String(data.ciclo || '').trim(),
-      String(data.seccion || '').trim(),
-      String(data.sexo || '').trim(),
-      String(data.pesoActual || '').trim(),
-      String(data.estaturaActual || '').trim(),
-      formatBooleanForSheet(data.actividadFisica),
-      String(data.frecuenciaActividad || '').trim(),
-      String(data.comidasPorDia || '').trim(),
-      String(data.consumoFrutasVerduras || '').trim(),
-      String(data.alergiaIntolerancia || '').trim(),
-      String(data.funcionVegetales || '').trim(),
-      String(data.platoFavorito1 || '').trim(),
-      String(data.platoFavorito2 || '').trim(),
-    )
-  } else if (type === 'Satisfaccion') {
-    values.push(
-      String(data.nombresApellidos || '').trim(),
-      String(data.carreraProfesional || '').trim(),
-      String(data.ciclo || '').trim(),
-      String(data.seccion || '').trim(),
-      String(data.infoCharla || '').trim(),
-      String(data.servicioEnfermeria || '').trim(),
-      String(data.proximoTema || '').trim(),
-      String(data.recomendacion || '').trim(),
-    )
+  const lock = shouldUseLock ? LockService.getScriptLock() : null
+
+  if (lock) {
+    lock.waitLock(30000)
   }
 
-  surveySheet.appendRow(values)
-  invalidateCache()
+  try {
+    const id = Utilities.getUuid()
+    const values = [id, type, period, configId, timestamp]
 
-  return {
-    success: true,
-    action: 'saveSurveyResponse',
-    timestamp,
-    responseId: id,
+    if (type === 'DatosClinicos') {
+      values.push(
+        String(data.programa || '').trim(),
+        String(data.ciclo || '').trim(),
+        String(data.seccion || '').trim(),
+        String(data.nombresApellidos || '').trim(),
+        String(data.fechaNacimiento || '').trim(),
+        String(data.edad || '').trim(),
+        String(data.sexo || '').trim(),
+        String(data.dni || '').trim(),
+        String(data.celular || '').trim(),
+        String(data.correoElectronico || '').trim(),
+        String(data.domicilio || '').trim(),
+        String(data.nacionalidad || '').trim(),
+        String(data.tipoSeguro || '').trim(),
+        String(data.contactoNombres || '').trim(),
+        String(data.contactoCelular || '').trim(),
+        String(data.parentesco || '').trim(),
+        formatBooleanForSheet(data.padeceEnfermedad),
+        String(data.enfermedadNombre || '').trim(),
+        formatBooleanForSheet(data.discapacidad),
+        String(data.discapacidadNombre || '').trim(),
+        formatBooleanForSheet(data.carnetConadis),
+        formatBooleanForSheet(data.tratamientoMedico),
+        String(data.tratamientoNombre || '').trim(),
+        formatBooleanForSheet(data.alergico),
+        String(data.alergicoNombre || '').trim(),
+        formatBooleanForSheet(data.vacunaCovid),
+        String(data.dosisCovid || '').trim(),
+        formatBooleanForSheet(data.embarazada),
+        String(data.fpp || '').trim(),
+        String(data.semanasGestacion || '').trim(),
+      )
+    } else if (type === 'TamizajeSalud') {
+      values.push(
+        String(data.nombresApellidos || '').trim(),
+        String(data.edad || '').trim(),
+        String(data.dni || '').trim(),
+        String(data.celular || '').trim(),
+        String(data.correoElectronico || '').trim(),
+        String(data.programa || '').trim(),
+        String(data.ciclo || '').trim(),
+        String(data.seccion || '').trim(),
+        String(data.sexo || '').trim(),
+        String(data.pesoActual || '').trim(),
+        String(data.estaturaActual || '').trim(),
+        formatBooleanForSheet(data.actividadFisica),
+        String(data.frecuenciaActividad || '').trim(),
+        String(data.comidasPorDia || '').trim(),
+        String(data.consumoFrutasVerduras || '').trim(),
+        String(data.alergiaIntolerancia || '').trim(),
+        String(data.funcionVegetales || '').trim(),
+        String(data.platoFavorito1 || '').trim(),
+        String(data.platoFavorito2 || '').trim(),
+      )
+    } else if (type === 'Satisfaccion') {
+      values.push(
+        String(data.correoElectronico || '').trim(),
+        String(data.nombresApellidos || '').trim(),
+        String(data.carreraProfesional || '').trim(),
+        String(data.ciclo || '').trim(),
+        String(data.seccion || '').trim(),
+        String(data.infoCharla || '').trim(),
+        String(data.servicioEnfermeria || '').trim(),
+        String(data.proximoTema || '').trim(),
+        String(data.recomendacion || '').trim(),
+      )
+    }
+
+    surveySheet.appendRow(values)
+    invalidateCache()
+
+    return {
+      success: true,
+      action: 'saveSurveyResponse',
+      timestamp,
+      responseId: id,
+    }
+  } catch (error) {
+    return {
+      success: false,
+      action: 'saveSurveyResponse',
+      message: 'No se pudo guardar la encuesta: ' + String(error),
+      timestamp,
+    }
+  } finally {
+    if (lock) {
+      lock.releaseLock()
+    }
   }
 }
 

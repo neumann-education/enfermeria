@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router'
 import ExcelJS from 'exceljs'
 import Layout from '../../Layout'
-import { fetchSurveyData } from '../../services/surveyService'
+import { fetchSurveyData, formatSurveyLink } from '../../services/surveyService'
 import DatosClinicosGroupedResponses from './DatosClinicosGroupedResponses'
 import { DatosClinicosResponse } from './DatosClinicosResponse'
 
@@ -164,7 +164,7 @@ function SurveyDetailDatosClinicos() {
   if (isLoading) {
     return (
       <Layout title='Respuestas de encuesta' activeView='surveys'>
-        <div className='space-y-8 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8'>
+        <div className='space-y-8 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8'>
           <section className='rounded-[32px] border border-outline-variant/20 bg-white/95 p-8 shadow-[0_40px_80px_rgba(0,0,0,0.05)]'>
             <div className='animate-pulse'>
               <div className='h-8 w-1/3 rounded-full bg-slate-200' />
@@ -181,7 +181,7 @@ function SurveyDetailDatosClinicos() {
 
   return (
     <Layout title={`Respuestas - Encuesta`} activeView='surveys'>
-      <div className='space-y-8 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8'>
+      <div className='space-y-8 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8'>
         <section className='grid gap-6 '>
           <div className='rounded-[32px] border border-outline-variant/20 bg-white/95 p-8 shadow-[0_40px_80px_rgba(0,0,0,0.05)]'>
             <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
@@ -193,6 +193,18 @@ function SurveyDetailDatosClinicos() {
                 <h1 className='mt-5 text-3xl font-extrabold tracking-tight text-on-surface'>
                   Datos Clínicos • {period}
                 </h1>
+                {id && (
+                  <div className='mt-2'>
+                    <a
+                      href={formatSurveyLink('DatosClinicos', id)}
+                      target='_blank'
+                      rel='noreferrer'
+                      className='text-sm text-primary underline'
+                    >
+                      Ver enlace de la encuesta
+                    </a>
+                  </div>
+                )}
                 <p className='mt-3 max-w-2xl text-sm leading-6 text-on-surface-variant'>
                   Revisa las respuestas recibidas y filtra por ciclo para
                   analizar la información por grupo.
@@ -233,7 +245,7 @@ function SurveyDetailDatosClinicos() {
                     <span className='material-symbols-outlined text-base'>
                       download
                     </span>
-                    Descargar Excel
+                    Descargar respuestas
                   </button>
                 </div>
               </div>
@@ -250,7 +262,7 @@ function SurveyDetailDatosClinicos() {
                   <span className='material-symbols-outlined text-base'>
                     bar_chart
                   </span>
-                  Summary
+                  Resumen
                 </button>
                 <button
                   onClick={() => setViewMode('individual')}
@@ -352,6 +364,9 @@ function SurveyDetailDatosClinicos() {
                           <p className='mt-1 text-sm text-on-surface-variant ml-10'>
                             DNI: {currentResponse.dni || '—'}
                           </p>
+                          <p className='mt-1 text-sm text-on-surface-variant ml-10'>
+                            Correo: {currentResponse.correoElectronico || '—'}
+                          </p>
                         </div>
                         <div className='inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary ml-10 lg:ml-0'>
                           <span className='material-symbols-outlined text-base'>
@@ -439,7 +454,7 @@ function SurveyDetailDatosClinicos() {
                           <div className='mt-4 grid gap-4 sm:grid-cols-2'>
                             <div className='rounded-2xl bg-white p-4'>
                               <p className='text-xs font-semibold uppercase tracking-[0.2em] text-on-surface-variant'>
-                                Contacto - Nombres y apellidos
+                                Nombres y apellidos
                               </p>
                               <p className='mt-2 text-base text-on-surface'>
                                 {currentResponse.contactoNombres || '—'}
@@ -447,7 +462,7 @@ function SurveyDetailDatosClinicos() {
                             </div>
                             <div className='rounded-2xl bg-white p-4'>
                               <p className='text-xs font-semibold uppercase tracking-[0.2em] text-on-surface-variant'>
-                                Contacto - Celular
+                                Celular
                               </p>
                               <p className='mt-2 text-base text-on-surface'>
                                 {currentResponse.contactoCelular || '—'}

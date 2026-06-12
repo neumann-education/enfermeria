@@ -18,7 +18,6 @@ type UserItem = {
   telefono?: string
   edad?: string
   sexo?: string
-  gender?: string
   rol?: string
   role?: string
   programa?: string
@@ -45,15 +44,17 @@ type AttendanceFollowUp = {
   observaciones: string
 }
 
-type HistoryAttendance = {
+export type HistoryAttendance = {
   orden: string
   fechaAtencion: string
+  horaSalida: string
   usuarioId: string
   nombreCompleto: string
   dni: string
   userType: string
   programa: string
   ciclo: string
+  seccion?: string
   periodo: string
   motivoAtencion: string
   areaProblematica: string
@@ -104,8 +105,7 @@ export const AppDataProvider = ({ children }: { children: ReactNode }) => {
           celular: user.celular || user.telefono || '',
           telefono: user.telefono || user.celular || '',
           edad: user.edad || '',
-          sexo: user.sexo || user.gender || '',
-          gender: user.gender || user.sexo || '',
+          sexo: user.sexo || '',
           rol: user.rol || '',
           role: user.role || user.rol || '',
           programa: user.programa || '',

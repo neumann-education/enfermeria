@@ -7,6 +7,7 @@ import {
 } from '../../services/surveyService'
 import toast from 'react-hot-toast'
 import SurveyLoading from '../../components/SurveyLoading'
+import { DEFAULT_ACADEMIC_PERIOD } from '../../constants/academicPeriod'
 
 type TamizajeSaludData = {
   nombresApellidos: string
@@ -118,10 +119,10 @@ function SurveyTamizajeSalud() {
     }
 
     requireText('nombresApellidos', 'Nombres y Apellidos')
+    requireText('correoElectronico', 'Correo Electrónico')
     requireText('edad', 'Edad')
     requireText('dni', 'Nro de DNI')
     requireText('celular', 'Nro de Celular')
-    requireText('correoElectronico', 'Correo Electrónico')
     requireText('programa', 'Programa actual')
     requireText('ciclo', 'Ciclo')
     requireText('seccion', 'Sección')
@@ -162,16 +163,15 @@ function SurveyTamizajeSalud() {
       nextErrors.funcionVegetales = 'Selecciona la función de los vegetales.'
     }
     requireText('platoFavorito1', 'Plato favorito 1')
-    requireText('platoFavorito2', 'Plato favorito 2')
 
     setErrors(nextErrors)
 
     const order: (keyof TamizajeSaludData)[] = [
+      'correoElectronico',
       'nombresApellidos',
       'edad',
       'dni',
       'celular',
-      'correoElectronico',
       'programa',
       'ciclo',
       'seccion',
@@ -203,7 +203,7 @@ function SurveyTamizajeSalud() {
       setIsSubmitting(false)
       return
     }
-    const period = config?.period ?? '2026 - I'
+    const period = config?.period ?? DEFAULT_ACADEMIC_PERIOD
     const type = config?.type ?? 'TamizajeSalud'
     try {
       await saveSurveyData(type, period, {
@@ -372,20 +372,19 @@ function SurveyTamizajeSalud() {
   const displayPeriod = config.period
 
   return (
-    <div className='min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 py-8 px-4'>
+    <div className='min-h-screen bg-gradient-to-br from-primary/10 to-primary-5 py-8 md:px-2'>
       <div className='max-w-4xl mx-auto space-y-6'>
-        <div className='bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden'>
-          <div className='bg-gradient-to-r from-primary/10 to-primary/5 p-8'>
-            <h1 className='text-3xl font-bold text-slate-900 mb-2'>
-              TAMIZAJE DE SALUD NUTRICIONAL
+        <div className='bg-primary rounded-xl border border-slate-200 shadow-sm overflow-hidden'>
+          <div className='flex justify-between items-center bg-gradient-to-r from-primary/10 to-primary/5 p-8'>
+            <h1 className='text-3xl font-bold text-white '>
+              EVALUACIÓN NUTRICIONAL
             </h1>
-            <p className='text-slate-600 font-medium'>
-              Período: {displayPeriod}
-            </p>
+            <p className='text-white font-medium text-3xl'>{displayPeriod}</p>
           </div>
           <div className='px-8 py-4 bg-slate-50 border-t border-slate-200'>
             <p className='text-sm text-slate-600'>
-              Completa el formulario con tus datos actuales.
+              Por favor completa todos los campos con información precisa y
+              verídica.
             </p>
           </div>
         </div>
@@ -412,7 +411,7 @@ function SurveyTamizajeSalud() {
                   'email',
                 )}
               </div>
-              <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+              <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                 {selectField(
                   'Programa actual',
                   'programa',
@@ -490,7 +489,7 @@ function SurveyTamizajeSalud() {
               <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                 {radioGroup(
                   'actividadFisica',
-                  'Realiza usted alguna actividad física?',
+                  '¿Realiza usted alguna actividad física?',
                   [
                     { label: 'SI', value: true },
                     { label: 'NO', value: false },

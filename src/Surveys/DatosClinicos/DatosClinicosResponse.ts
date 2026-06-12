@@ -4,6 +4,7 @@ export interface DatosClinicosResponse {
   period: string
   configId: string
   registeredAt: string
+  correoElectronico: string
   programa: string
   ciclo: string
   seccion: string

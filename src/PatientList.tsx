@@ -1,13 +1,16 @@
 import Layout from './Layout'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useAppData } from './AppDataContext'
+
+const PAGE_SIZE = 10
 
 function PatientList() {
   const navigate = useNavigate()
   const { users, usersLoading } = useAppData()
   const [searchTerm, setSearchTerm] = useState('')
   const [filterDate, setFilterDate] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
 
   const parseMaybeDate = (value?: string | null) => {
     const normalized = String(value || '').trim()
@@ -63,6 +66,22 @@ function PatientList() {
     return { date: normalized, time: '' }
   }
 
+  const getAvatarTone = (value?: string | null) => {
+    const normalized = String(value || '')
+      .trim()
+      .toLowerCase()
+
+    if (normalized === 'm' || normalized.startsWith('masc')) {
+      return 'bg-sky-100 text-sky-700'
+    }
+
+    if (normalized === 'f' || normalized.startsWith('fem')) {
+      return 'bg-rose-100 text-rose-700'
+    }
+
+    return 'bg-slate-100 text-slate-700'
+  }
+
   const filterDateObj = parseMaybeDate(filterDate)
 
   const filteredUsers = users.filter((user) => {
@@ -101,6 +120,40 @@ function PatientList() {
   const totalUpdated = users.filter(
     (user) => user.fechaUltimaActualizacion,
   ).length
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE))
+  const currentPageSafe = Math.min(currentPage, totalPages)
+  const paginatedUsers = filteredUsers.slice(
+    (currentPageSafe - 1) * PAGE_SIZE,
+    currentPageSafe * PAGE_SIZE,
+  )
+
+  const visiblePageNumbers = (() => {
+    if (totalPages <= 5) {
+      return Array.from({ length: totalPages }, (_, index) => index + 1)
+    }
+
+    const pages: number[] = [1]
+    if (currentPageSafe > 3) {
+      pages.push(-1)
+    }
+
+    const startPage = Math.max(2, currentPageSafe - 1)
+    const endPage = Math.min(totalPages - 1, currentPageSafe + 1)
+    for (let page = startPage; page <= endPage; page += 1) {
+      pages.push(page)
+    }
+
+    if (currentPageSafe < totalPages - 2) {
+      pages.push(-1)
+    }
+
+    pages.push(totalPages)
+    return pages
+  })()
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, filterDate])
 
   return (
     <Layout activeView='user-patients' title='Usuarios y Pacientes'>
@@ -136,7 +189,7 @@ function PatientList() {
             </div>
             <div>
               <p className='text-sm font-bold text-on-surface-variant uppercase tracking-wider'>
-                Pacientes registrados
+                Estudiantes registrados
               </p>
               <p className='text-3xl font-extrabold text-on-surface font-headline'>
                 {totalPatients}
@@ -232,7 +285,7 @@ function PatientList() {
                 : 'No hay usuarios registrados.'}
             </div>
           ) : (
-            filteredUsers.map((user) => {
+            paginatedUsers.map((user) => {
               const updateValues = formatTableDateTime(
                 user.fechaUltimaActualizacion || '',
               )
@@ -242,10 +295,12 @@ function PatientList() {
                   key={user.id}
                   className='group border-t border-outline-variant/10 bg-surface-container-lowest transition hover:bg-surface-container-high/30 hover:shadow-lg hover:shadow-primary/5'
                 >
-                  <div className='grid grid-cols-1 gap-4 px-6 py-5 md:grid-cols-12 md:items-center'>
+                  <div className='grid grid-cols-1 gap-4 px-6 py-2 md:grid-cols-12 md:items-center'>
                     <div className='col-span-5 flex items-center gap-4'>
                       <div className='relative'>
-                        <div className='flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold'>
+                        <div
+                          className={`flex h-12 w-12 items-center justify-center rounded-full font-semibold ${getAvatarTone(user.sexo)}`}
+                        >
                           {user.nombreCompleto
                             .split(' ')
                             .map((part) => part[0])
@@ -298,11 +353,6 @@ function PatientList() {
                           visibility
                         </span>
                       </button>
-                      <button className='p-2 rounded-lg hover:bg-surface-container text-on-surface-variant'>
-                        <span className='material-symbols-outlined text-xl'>
-                          edit
-                        </span>
-                      </button>
                     </div>
                   </div>
                 </div>
@@ -310,6 +360,65 @@ function PatientList() {
             })
           )}
         </section>
+
+        {filteredUsers.length > PAGE_SIZE && (
+          <div className='flex flex-col items-center gap-4'>
+            <div className='text-sm text-on-surface-variant'>
+              Mostrando{' '}
+              {Math.min(
+                filteredUsers.length,
+                (currentPageSafe - 1) * PAGE_SIZE + 1,
+              )}
+              -{Math.min(filteredUsers.length, currentPageSafe * PAGE_SIZE)} de{' '}
+              {filteredUsers.length}
+            </div>
+            <div className='flex flex-wrap items-center justify-center gap-2'>
+              <button
+                type='button'
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={currentPageSafe === 1}
+                className='rounded-full border border-outline-variant/40 bg-white px-4 py-2 text-sm font-semibold text-on-surface disabled:cursor-not-allowed disabled:opacity-50'
+              >
+                Anterior
+              </button>
+
+              {visiblePageNumbers.map((page, index) =>
+                page === -1 ? (
+                  <span
+                    key={`ellipsis-${index}`}
+                    className='px-2 text-on-surface-variant'
+                  >
+                    ...
+                  </span>
+                ) : (
+                  <button
+                    key={page}
+                    type='button'
+                    onClick={() => setCurrentPage(page)}
+                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                      page === currentPageSafe
+                        ? 'bg-primary text-white'
+                        : 'border border-outline-variant/40 bg-white text-on-surface hover:bg-surface-container'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ),
+              )}
+
+              <button
+                type='button'
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                }
+                disabled={currentPageSafe === totalPages}
+                className='rounded-full border border-outline-variant/40 bg-white px-4 py-2 text-sm font-semibold text-on-surface disabled:cursor-not-allowed disabled:opacity-50'
+              >
+                Siguiente
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   )

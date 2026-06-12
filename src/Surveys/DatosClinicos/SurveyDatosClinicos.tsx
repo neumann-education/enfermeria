@@ -8,6 +8,7 @@ import {
 } from '../../services/surveyService'
 import toast from 'react-hot-toast'
 import SurveyLoading from '../../components/SurveyLoading'
+import { DEFAULT_ACADEMIC_PERIOD } from '../../constants/academicPeriod'
 
 function SurveyDatosClinicos() {
   const { id } = useParams<{ id: string }>()
@@ -58,6 +59,7 @@ function SurveyDatosClinicos() {
     sexo: '',
     dni: '',
     celular: '',
+    correoElectronico: '',
     domicilio: '',
     nacionalidad: '',
     tipoSeguro: '',
@@ -130,6 +132,7 @@ function SurveyDatosClinicos() {
       }
     }
 
+    requireText('correoElectronico', 'Correo Electrónico')
     requireText('programa', 'Programa')
     requireText('ciclo', 'Ciclo')
     requireText('seccion', 'Sección')
@@ -199,7 +202,8 @@ function SurveyDatosClinicos() {
 
     setErrors(nextErrors)
 
-    const order: (keyof DatosClinicosData)[] = [
+    const order: string[] = [
+      'correoElectronico',
       'programa',
       'ciclo',
       'seccion',
@@ -229,6 +233,7 @@ function SurveyDatosClinicos() {
       'embarazada',
       'fpp',
       'semanasGestacion',
+      'confirmDeclaration',
     ]
 
     const firstErrorField = order.find((key) => key in nextErrors)
@@ -269,6 +274,7 @@ function SurveyDatosClinicos() {
     label: string,
     options: string[],
     spanClass = 'md:col-span-2',
+    description?: string,
   ) => {
     const hasError = Boolean(errors[key])
     return (
@@ -278,11 +284,12 @@ function SurveyDatosClinicos() {
           hasError ? 'border-red-300' : 'border-slate-200'
         }`}
       >
-        <legend
-          className={`text-sm px-1  font-semibold text-slate-700 block mb-3 `}
-        >
+        <legend className={`text-sm px-1 font-semibold text-slate-700 block`}>
           {label}
         </legend>
+        {description ? (
+          <div className='text-sm text-slate-600'>{description}</div>
+        ) : null}
         <div className='flex flex-wrap gap-3'>
           {options.map((option) => {
             const value =
@@ -314,7 +321,7 @@ function SurveyDatosClinicos() {
   const inputField = (
     placeholder: string,
     key: keyof DatosClinicosData,
-    type: 'text' | 'number' | 'date' = 'text',
+    type: 'text' | 'number' | 'date' | 'email' = 'text',
     label?: string,
   ) => {
     const hasError = Boolean(errors[key])
@@ -428,33 +435,44 @@ function SurveyDatosClinicos() {
     )
   }
 
-  const displayPeriod = config?.period ?? '2026 - I'
+  const displayPeriod = config?.period ?? DEFAULT_ACADEMIC_PERIOD
 
   return (
-    <div className='min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 py-8 px-4'>
-      <div className='max-w-3xl mx-auto space-y-6'>
+    <div className='min-h-screen bg-gradient-to-br from-primary/10 to-primary-5 py-8 md:px-2'>
+      <div className='max-w-4xl mx-auto space-y-6'>
         {/* Header */}
-        <div className='bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden'>
-          <div className='bg-gradient-to-r from-primary/10 to-primary/5 p-8'>
-            <h1 className='text-3xl font-bold text-slate-900 mb-2'>
+        <div className='bg-primary rounded-xl border border-slate-200 shadow-sm overflow-hidden'>
+          <div className='flex justify-between items-center bg-gradient-to-r from-primary/10 to-primary/5 p-8'>
+            <h1 className='text-3xl font-bold text-white '>
               DATOS CLÍNICOS DEL ESTUDIANTE
             </h1>
-            <p className='text-slate-600 font-medium'>
-              Período: {displayPeriod}
-            </p>
+            <p className='text-white font-medium text-3xl'>{displayPeriod}</p>
           </div>
           <div className='px-8 py-4 bg-slate-50 border-t border-slate-200'>
             <p className='text-sm text-slate-600'>
               Por favor completa todos los campos con información precisa y
               verídica.
             </p>
+            <p className='mt-2 text-sm text-slate-600'>
+              Tus datos serán tratados de forma confidencial y solo se
+              utilizarán con fines clínicos y estadísticos. No compartiremos tus
+              respuestas públicamente.
+            </p>
           </div>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className='space-y-6'>
+          <div className='bg-white rounded-xl border border-slate-200 p-4'>
+            {inputField(
+              'Correo Electrónico',
+              'correoElectronico',
+              'email',
+              'Correo Electrónico',
+            )}
+          </div>
           <div className='space-y-0 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden'>
-            {sectionHeader('Información del Programa', true)}
+            {sectionHeader('INFORMACIÓN DEL PROGRAMA', true)}
             <div className='p-6 space-y-4 border-b border-slate-200'>
               <div className='space-y-4'>
                 {/* Primera fila */}
@@ -498,7 +516,7 @@ function SurveyDatosClinicos() {
 
           <div className='space-y-0 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden'>
             {/* ANTECEDENTES PERSONALES Section */}
-            {sectionHeader('I) Antecedentes Personales', true)}
+            {sectionHeader('I) ANTECEDENTES PERSONALES', true)}
             <div className='p-6 space-y-5 border-b border-slate-200'>
               <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                 {inputField(
@@ -563,7 +581,7 @@ function SurveyDatosClinicos() {
 
           <div className='space-y-0 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden'>
             {/* CONTACTO DE EMERGENCIA Section */}
-            {sectionHeader('II) Datos de Contacto de Emergencia', true)}
+            {sectionHeader('II) DATOS DE CONTACTO DE EMERGENCIA', true)}
             <div className='p-6 space-y-5 border-b border-slate-200'>
               <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                 {inputField(
@@ -587,7 +605,7 @@ function SurveyDatosClinicos() {
 
           <div className='space-y-0 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden'>
             {/* ANTECEDENTES CLINICOS Section */}
-            {sectionHeader('III) Antecedentes Clínicos', true)}
+            {sectionHeader('III) ANTECEDENTES CLÍNICOS', true)}
             <div className='p-6 space-y-6 border-b border-slate-200'>
               {/* Enfermedad */}
               <div className='space-y-4'>
@@ -718,6 +736,7 @@ function SurveyDatosClinicos() {
                   '¿Te encuentras embarazada?',
                   ['SI', 'NO'],
                   'w-full',
+                  'Esta información permitirá al equipo de enfermería brindarte un mejor acompañamiento.',
                 )}
                 {form.embarazada && (
                   <div className='ml-4 pt-2 border-l-2 border-primary/30 pl-4 space-y-4'>
@@ -725,7 +744,7 @@ function SurveyDatosClinicos() {
                       'Fecha Probable de Parto (FPP)',
                       'fpp',
                       'date',
-                      'FPP',
+                      'FPP (Fecha Probable de Parto)',
                     )}
                     {inputField(
                       'Semanas de Gestación',
@@ -740,7 +759,7 @@ function SurveyDatosClinicos() {
           </div>
 
           {/* Submit Button */}
-          <div className='p-6 bg-slate-50 border-t border-slate-200 flex justify-end'>
+          <div className='flex justify-end'>
             <button
               type='submit'
               disabled={isSubmitting}

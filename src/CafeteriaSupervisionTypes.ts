@@ -1,3 +1,5 @@
+import { DEFAULT_ACADEMIC_PERIOD } from './constants/academicPeriod'
+
 export type CafeteriaSupervisionRecord = {
   id: string
   fecha: string
@@ -15,8 +17,6 @@ export type CafeteriaSupervisionRecord = {
   tiempoServicio: boolean | null
   calidadPrecio: boolean | null
   preciosCompetitivos: boolean | null
-  productosLocales: boolean | null
-  reciclaResiduos: boolean | null
   estadoEquipamiento: boolean | null
   observaciones: string
   aprobado?: 'Aprobado' | 'No aprobado' | ''
@@ -39,8 +39,6 @@ export type FormState = {
   tiempoServicio: boolean | null
   calidadPrecio: boolean | null
   preciosCompetitivos: boolean | null
-  productosLocales: boolean | null
-  reciclaResiduos: boolean | null
   estadoEquipamiento: boolean | null
   observaciones: string
   aprobado: 'Aprobado' | 'No aprobado' | ''
@@ -49,7 +47,7 @@ export type FormState = {
 export const initialFormState: FormState = {
   fecha: '',
   hora: '',
-  periodo: '',
+  periodo: DEFAULT_ACADEMIC_PERIOD,
   concesionario: '',
   supervisor: '',
   higieneBasica: null,
@@ -62,8 +60,6 @@ export const initialFormState: FormState = {
   tiempoServicio: null,
   calidadPrecio: null,
   preciosCompetitivos: null,
-  productosLocales: null,
-  reciclaResiduos: null,
   estadoEquipamiento: null,
   observaciones: '',
   aprobado: '',

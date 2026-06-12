@@ -1,15 +1,16 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import toast from 'react-hot-toast'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
+import SurveyLoading from '../../components/SurveyLoading'
 import {
   SurveyConfig,
   fetchSurveyConfigById,
   saveSurveyData,
 } from '../../services/surveyService'
-import toast from 'react-hot-toast'
-import SurveyLoading from '../../components/SurveyLoading'
 
 type SatisfaccionData = {
   nombresApellidos: string
+  correoElectronico: string
   carreraProfesional: 'ADMINISTRACION' | 'CONTABILIDAD' | ''
   ciclo:
     | 'PRIMER CICLO'
@@ -76,6 +77,7 @@ function SurveySatisfaccion() {
 
   const [form, setForm] = useState<SatisfaccionData>({
     nombresApellidos: '',
+    correoElectronico: '',
     carreraProfesional: '',
     ciclo: '',
     seccion: '',
@@ -123,6 +125,7 @@ function SurveySatisfaccion() {
     }
 
     requireText('nombresApellidos', 'Nombres y Apellidos')
+    requireText('correoElectronico', 'Correo Electrónico')
     if (!form.carreraProfesional) {
       nextErrors.carreraProfesional = 'Selecciona la carrera profesional.'
     }
@@ -146,6 +149,7 @@ function SurveySatisfaccion() {
     setErrors(nextErrors)
 
     const order: (keyof SatisfaccionData)[] = [
+      'correoElectronico',
       'nombresApellidos',
       'carreraProfesional',
       'ciclo',
@@ -363,20 +367,31 @@ function SurveySatisfaccion() {
   const displayPeriod = config.period
 
   return (
-    <div className='min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 py-8 px-4'>
+    <div className='min-h-screen bg-gradient-to-br from-primary/10 to-primary-5 py-8 md:px-2'>
       <div className='max-w-4xl mx-auto space-y-6'>
-        <div className='bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden'>
-          <div className='bg-gradient-to-r from-primary/10 to-primary/5 p-8'>
-            <h1 className='text-3xl font-bold text-slate-900 mb-2'>
-              ENCUESTA DE SATISFACCION - CHARLA DE ENFERMERIA
+        <div className='bg-primary rounded-xl border border-slate-200 shadow-sm overflow-hidden'>
+          <div className='flex justify-between items-center bg-gradient-to-r from-primary/10 to-primary/5 p-8'>
+            <h1 className='text-3xl font-bold text-white '>
+              ENCUESTA DE SATISFACCION{' '}
             </h1>
-            <p className='text-slate-600 font-medium'>
-              Período: {displayPeriod}
+            <p className='text-white font-medium text-3xl'>{displayPeriod} </p>
+          </div>
+          <div className='px-8 py-4 bg-slate-50 border-t border-slate-200'>
+            <p className='text-sm text-slate-600'>
+              Por favor completa todos los campos con información precisa y
+              verídica.
             </p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className='space-y-6'>
+          <div className='bg-white rounded-xl border border-slate-200 p-4'>
+            {inputField(
+              'Correo Electrónico *',
+              'correoElectronico',
+              'Correo Electrónico',
+            )}
+          </div>
           <div className='space-y-0 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden'>
             {sectionHeader('DATOS PERSONALES', true)}
             <div className='p-6 border-b border-slate-200 space-y-4'>
@@ -424,6 +439,7 @@ function SurveySatisfaccion() {
                 'infoCharla',
                 '¿Qué tan satisfecho te encuentras con la información brindada en la charla?',
                 [
+                  { label: 'Muy insatisfecho/a', value: 'MUY INSATISFECHO' },
                   { label: 'Insatisfecho/a', value: 'INSATISFECHO' },
                   {
                     label: 'Ni satisfecho/a ni insatisfecho/a',
@@ -438,6 +454,7 @@ function SurveySatisfaccion() {
                 'servicioEnfermeria',
                 '¿Qué tan satisfecho/a te encuentras con el servicio de enfermería?',
                 [
+                  { label: 'Muy insatisfecho/a', value: 'MUY INSATISFECHO' },
                   { label: 'Insatisfecho/a', value: 'INSATISFECHO' },
                   {
                     label: 'Ni satisfecho/a ni insatisfecho/a',
@@ -463,7 +480,7 @@ function SurveySatisfaccion() {
                 <p className='text-xs text-slate-500'>
                   Ten en cuenta que 1 es muy poco probable y 10 es muy probable.
                 </p>
-                <div className='grid grid-cols-10 gap-4'>
+                <div className='grid grid-cols-10 gap-1 md:gap-4'>
                   {Array.from({ length: 10 }, (_, index) => index + 1).map(
                     (value) => (
                       <button

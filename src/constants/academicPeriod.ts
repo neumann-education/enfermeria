@@ -1,0 +1,1 @@
+export const DEFAULT_ACADEMIC_PERIOD = '2026 - II'

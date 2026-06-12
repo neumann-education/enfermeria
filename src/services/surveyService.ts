@@ -20,6 +20,7 @@ export type DatosClinicosData = {
   celular: string
   domicilio: string
   nacionalidad: string
+  correoElectronico: string
   tipoSeguro: 'SIS' | 'ESSALUD' | 'FFAA' | 'OTRO' | 'NINGUNO' | ''
   // Emergency contact
   contactoNombres: string

@@ -1,17 +1,19 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import Layout from './Layout'
+import Loader from './Loader'
 import UserRegistrationForm from './UserRegistrationForm'
 import AttentionForm from './AttentionForm'
 import { consultaService } from './services/consultaService'
 import { useAppData } from './AppDataContext'
 import toast from 'react-hot-toast'
+import { DEFAULT_ACADEMIC_PERIOD } from './constants/academicPeriod'
+import { normalizeSexCode, normalizeSexLabel } from './utils/sex'
 
 type Patient = {
   id: string
   name: string
   age?: string | number
-  gender?: string
   sexo?: string
   email?: string
   role?: string
@@ -94,7 +96,8 @@ function RegistrationForm() {
   const [customLivingWith, setCustomLivingWith] = useState('')
   const [career, setCareer] = useState('')
   const [cycle, setCycle] = useState('')
-  const [periodo, setPeriodo] = useState('')
+  const [periodo, setPeriodo] = useState(DEFAULT_ACADEMIC_PERIOD)
+  const [horaSalida, setHoraSalida] = useState('')
   const [section, setSection] = useState('')
   const [motivoAtencion, setMotivoAtencion] = useState('')
   const [medioContacto, setMedioContacto] = useState('')
@@ -112,7 +115,16 @@ function RegistrationForm() {
   const [observaciones, setObservaciones] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [showPatientDetailModal, setShowPatientDetailModal] = useState(false)
-  const { users } = useAppData()
+  const { users, refreshUsers, refreshAttendances } = useAppData()
+
+  useEffect(() => {
+    if (!horaSalida) {
+      const now = new Date()
+      const hours = String(now.getHours()).padStart(2, '0')
+      const minutes = String(now.getMinutes()).padStart(2, '0')
+      setHoraSalida(`${hours}:${minutes}`)
+    }
+  }, [horaSalida])
 
   const registerAttentionComplete = async (data: any) => {
     try {
@@ -157,7 +169,7 @@ function RegistrationForm() {
         periodo.trim(),
       )
     ) {
-      missingFields.push('Periodo (formato 2026 - I)')
+      missingFields.push(`Periodo (formato ${DEFAULT_ACADEMIC_PERIOD})`)
     }
     if (!motivoAtencion.trim()) missingFields.push('Motivo de atención')
     if (!areaProblematica.trim())
@@ -209,6 +221,10 @@ function RegistrationForm() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const loadedPatientId = useRef<string | null>(null)
+  const patientId = searchParams.get('patientId')?.trim()
+  const [isInitialPatientLoading, setIsInitialPatientLoading] = useState(() =>
+    Boolean(patientId),
+  )
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -227,16 +243,17 @@ function RegistrationForm() {
   }, [])
 
   useEffect(() => {
-    const patientId = searchParams.get('patientId')?.trim()
     if (!patientId || loadedPatientId.current === patientId) {
       return
     }
     loadedPatientId.current = patientId
+    setIsInitialPatientLoading(true)
 
     const loadPatientForAttendance = async () => {
       try {
         const user = await consultaService.getUserById(patientId)
         if (!user) {
+          toast.error('No se encontró el paciente solicitado')
           return
         }
 
@@ -244,8 +261,7 @@ function RegistrationForm() {
           id: user.id,
           name: user.nombreCompleto || '',
           age: user.edad || '',
-          sexo: user.sexo || user.gender || '',
-          gender: user.sexo || user.gender || '',
+          sexo: user.sexo || '',
           email: user.correoElectronico || user.email || '',
           dni: user.dni || '',
           celular: user.telefono || user.celular || '',
@@ -267,11 +283,23 @@ function RegistrationForm() {
           'No se pudo cargar el paciente para crear atención',
           error,
         )
+        toast.error('No se pudo cargar la información del paciente')
+      } finally {
+        setIsInitialPatientLoading(false)
       }
     }
 
     loadPatientForAttendance()
-  }, [searchParams])
+  }, [patientId])
+
+  useEffect(() => {
+    if (searchParams.get('restart') !== '1') {
+      return
+    }
+
+    resetRegistrationState()
+    navigate('/registration', { replace: true })
+  }, [navigate, searchParams])
 
   useEffect(() => {
     const query = searchQuery.trim().toLowerCase()
@@ -324,8 +352,7 @@ function RegistrationForm() {
           isPregnant: user.isPregnant || '',
           hasDisability: user.hasDisability || '',
           fechaUltimaActualizacion: user.fechaUltimaActualizacion || '',
-          sexo: user.sexo || user.gender || '',
-          gender: user.gender || user.sexo || '',
+          sexo: user.sexo || '',
         }))
 
       setSearchResults(mappedUsers)
@@ -364,6 +391,36 @@ function RegistrationForm() {
     setObservaciones('')
   }
 
+  const resetRegistrationState = () => {
+    setFlowType(null)
+    setSelectedPatient(null)
+    setSearchQuery('')
+    setSearchResults([])
+    setSearchError('')
+    setCurrentStep(1)
+    setSelectedRole('Estudiante')
+    setFullName('')
+    setEmail('')
+    setPhone('')
+    setDni('')
+    setAgeInput('')
+    setSex('')
+    setLivingWith('')
+    setCustomLivingWith('')
+    setCareer('')
+    setCycle('')
+    setSection('')
+    setAreaDepartment('')
+    setCargo('')
+    setNationality('')
+    setCustomNationality('')
+    setNationalityFilter('')
+    setNationalityDropdownOpen(false)
+    setInsuranceType('')
+    setCustomInsuranceType('')
+    resetAttendanceState()
+  }
+
   const handleNewPatient = () => {
     setFlowType('new')
     setSelectedPatient(null)
@@ -379,7 +436,7 @@ function RegistrationForm() {
     setSearchQuery('')
     setCurrentStep(3)
     setSelectedRole(patient.role || selectedRole)
-    setSex(patient.sexo || patient.gender || '')
+    setSex(normalizeSexCode(patient.sexo || ''))
     setFullName(patient.name || '')
     setEmail(patient.email || '')
     setPhone(patient.celular || '')
@@ -446,6 +503,10 @@ function RegistrationForm() {
         </div>
       </div>
     )
+  }
+
+  if (isInitialPatientLoading && patientId) {
+    return <Loader message='Cargando paciente' />
   }
 
   return (
@@ -558,21 +619,25 @@ function RegistrationForm() {
                                 {patient.sexo && (
                                   <span
                                     className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 ${
-                                      patient.sexo === 'Masculino'
+                                      normalizeSexLabel(patient.sexo) ===
+                                      'Masculino'
                                         ? 'bg-blue-100 text-blue-800'
-                                        : patient.sexo === 'Femenino'
+                                        : normalizeSexLabel(patient.sexo) ===
+                                            'Femenino'
                                           ? 'bg-pink-100 text-pink-800'
                                           : 'bg-surface-container-low text-on-surface-variant'
                                     }`}
                                   >
                                     <span className='material-symbols-outlined text-sm'>
-                                      {patient.sexo === 'Masculino'
+                                      {normalizeSexLabel(patient.sexo) ===
+                                      'Masculino'
                                         ? 'male'
-                                        : patient.sexo === 'Femenino'
+                                        : normalizeSexLabel(patient.sexo) ===
+                                            'Femenino'
                                           ? 'female'
                                           : 'person'}
                                     </span>
-                                    {patient.sexo}
+                                    {normalizeSexLabel(patient.sexo)}
                                   </span>
                                 )}
                                 {patient.age && (
@@ -698,10 +763,18 @@ function RegistrationForm() {
             />
             {currentStep === 3 && (
               <AttentionForm
+                programa={career}
+                setPrograma={setCareer}
+                ciclo={cycle}
+                setCiclo={setCycle}
+                section={section}
+                setSection={setSection}
                 motivoAtencion={motivoAtencion}
                 setMotivoAtencion={setMotivoAtencion}
                 periodo={periodo}
                 setPeriodo={setPeriodo}
+                horaSalida={horaSalida}
+                setHoraSalida={setHoraSalida}
                 areaProblematica={areaProblematica}
                 setAreaProblematica={setAreaProblematica}
                 customAreaProblematica={customAreaProblematica}
@@ -752,21 +825,25 @@ function RegistrationForm() {
                           {selectedPatient.sexo && (
                             <span
                               className={`flex-shrink-0 text-xs px-2 py-1 rounded-full flex items-center gap-1 ${
-                                selectedPatient.sexo === 'Masculino'
+                                normalizeSexLabel(selectedPatient.sexo) ===
+                                'Masculino'
                                   ? 'bg-blue-100 text-blue-800'
-                                  : selectedPatient.sexo === 'Femenino'
+                                  : normalizeSexLabel(selectedPatient.sexo) ===
+                                      'Femenino'
                                     ? 'bg-pink-100 text-pink-800'
                                     : 'bg-surface-container-low text-on-surface-variant'
                               }`}
                             >
                               <span className='material-symbols-outlined text-sm'>
-                                {selectedPatient.sexo === 'Masculino'
+                                {normalizeSexLabel(selectedPatient.sexo) ===
+                                'Masculino'
                                   ? 'male'
-                                  : selectedPatient.sexo === 'Femenino'
+                                  : normalizeSexLabel(selectedPatient.sexo) ===
+                                      'Femenino'
                                     ? 'female'
                                     : 'person'}
                               </span>
-                              {selectedPatient.sexo}
+                              {normalizeSexLabel(selectedPatient.sexo)}
                             </span>
                           )}
                           {selectedPatient.age && (
@@ -833,11 +910,7 @@ function RegistrationForm() {
                           />
                           <DetailRow
                             label='Sexo'
-                            value={
-                              selectedPatient.sexo ||
-                              selectedPatient.gender ||
-                              ''
-                            }
+                            value={selectedPatient.sexo || ''}
                           />
                           <DetailRow
                             label='Email'
@@ -947,9 +1020,6 @@ function RegistrationForm() {
                             rol: selectedRole,
                             carrera:
                               selectedRole === 'Estudiante' ? career : '',
-                            ciclo: selectedRole === 'Estudiante' ? cycle : '',
-                            seccion:
-                              selectedRole === 'Estudiante' ? section : '',
                             areaDepartamento:
                               selectedRole === 'Administrativo'
                                 ? areaDepartment
@@ -966,6 +1036,7 @@ function RegistrationForm() {
                                 : insuranceType,
                             isPregnant: 'No',
                             hasDisability: 'No',
+                            horaSalida,
                             fechaAtencion: new Date().toLocaleString('es-ES', {
                               timeZone: 'America/Lima',
                               year: 'numeric',
@@ -977,6 +1048,9 @@ function RegistrationForm() {
                             }),
                             programa:
                               selectedRole === 'Estudiante' ? career : '',
+                            ciclo: selectedRole === 'Estudiante' ? cycle : '',
+                            seccion:
+                              selectedRole === 'Estudiante' ? section : '',
                             periodo,
                             motivoAtencion,
                             areaProblematica:
@@ -996,6 +1070,8 @@ function RegistrationForm() {
                             )
                             return
                           }
+                          await refreshUsers()
+                          await refreshAttendances()
                           toast.success(
                             'Usuario y atención registrados correctamente',
                           )
@@ -1021,6 +1097,7 @@ function RegistrationForm() {
                             telefono: selectedPatient?.celular || '',
                             programa: selectedPatient?.carrera || '',
                             ciclo: selectedPatient?.ciclo || '',
+                            seccion: selectedPatient?.seccion || section || '',
                             periodo,
                             motivoAtencion,
                             areaProblematica:
@@ -1039,6 +1116,7 @@ function RegistrationForm() {
                             )
                             return
                           }
+                          await refreshAttendances()
                           toast.success('Atención registrada correctamente')
                           navigate(
                             `/user/${result.usuarioId || selectedPatient?.id}`,

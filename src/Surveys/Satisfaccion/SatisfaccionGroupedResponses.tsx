@@ -8,6 +8,7 @@ function SatisfaccionGroupedResponses({ responses }: { responses: any[] }) {
   const carreras = responses.map((r) => r.carreraProfesional).filter(Boolean)
   const ciclos = responses.map((r) => r.ciclo).filter(Boolean)
   const secciones = responses.map((r) => r.seccion).filter(Boolean)
+  const correos = responses.map((r) => r.correoElectronico).filter(Boolean)
 
   // Respuestas principales
   const nombres = responses.map((r) => r.nombresApellidos).filter(Boolean)
@@ -24,6 +25,7 @@ function SatisfaccionGroupedResponses({ responses }: { responses: any[] }) {
         DATOS PERSONALES
       </h1>
       <div className='space-y-6'>
+        {renderTextField('Correo electrónico', correos)}
         {renderTextField('Nombres y Apellidos', nombres)}
         {renderMultipleField('Carrera profesional', carreras)}
         {renderMultipleField('Ciclo', ciclos)}

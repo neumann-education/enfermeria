@@ -8,15 +8,17 @@ import {
   updateSurveyConfigById,
   createSurveyConfig,
 } from '../../services/surveyService'
+import CopyButton from '../../components/CopyButton'
 import toast from 'react-hot-toast'
+import { DEFAULT_ACADEMIC_PERIOD } from '../../constants/academicPeriod'
 
-export const ENFERMERIA_LINK = 'https://erick007ml.github.io/enfermeria/'
+export const ENFERMERIA_LINK = 'https://neumann-education.github.io/enfermeria/'
 
 function SurveysDatosClinicosList() {
   const [configs, setConfigs] = useState<SurveyConfig[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isCreating, setIsCreating] = useState(false)
-  const [newPeriod, setNewPeriod] = useState('')
+  const [newPeriod, setNewPeriod] = useState(DEFAULT_ACADEMIC_PERIOD)
   const [periodError, setPeriodError] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [pendingToggleConfig, setPendingToggleConfig] =
@@ -123,7 +125,7 @@ function SurveysDatosClinicosList() {
         isOpen: true,
       })
       loadConfigs()
-      setNewPeriod('')
+      setNewPeriod(DEFAULT_ACADEMIC_PERIOD)
       setShowModal(false)
       setIsCreating(false)
     } catch (error) {
@@ -190,6 +192,7 @@ function SurveysDatosClinicosList() {
               <button
                 onClick={() => {
                   setShowModal(true)
+                  setNewPeriod(DEFAULT_ACADEMIC_PERIOD)
                   setPeriodError('')
                 }}
                 className='inline-flex items-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-primary/90 transition'
@@ -238,14 +241,14 @@ function SurveysDatosClinicosList() {
                   </div>
                   <input
                     type='text'
-                    placeholder='Período (ej: 2026 - I)'
+                    placeholder={DEFAULT_ACADEMIC_PERIOD}
                     value={newPeriod}
                     onChange={(e) => {
                       const formatted = formatPeriodoInput(e.target.value)
                       setNewPeriod(formatted)
                       if (formatted && !validatePeriodFormat(formatted)) {
                         setPeriodError(
-                          'El formato debe ser "año - número romano" (ej: 2026 - I)',
+                          `El formato debe ser "año - número romano" (ej: ${DEFAULT_ACADEMIC_PERIOD})`,
                         )
                       } else if (formatted && validatePeriodFormat(formatted)) {
                         setPeriodError('')
@@ -399,14 +402,19 @@ function SurveysDatosClinicosList() {
                         {config.period}
                       </td>
                       <td className='px-4 py-4'>
-                        <a
-                          href={`${ENFERMERIA_LINK}${config.link}`}
-                          className='text-primary hover:underline'
-                          target='_blank'
-                          rel='noreferrer'
-                        >
-                          {`${ENFERMERIA_LINK}${config.link}`}
-                        </a>
+                        <div className='flex items-center gap-3'>
+                          <a
+                            href={`${ENFERMERIA_LINK}${config.link}`}
+                            className='text-primary hover:underline truncate'
+                            target='_blank'
+                            rel='noreferrer'
+                          >
+                            {`${ENFERMERIA_LINK}${config.link}`}
+                          </a>
+                          <CopyButton
+                            text={`${ENFERMERIA_LINK}${config.link}`}
+                          />
+                        </div>
                       </td>
                       <td className='px-4 py-4'>
                         <button

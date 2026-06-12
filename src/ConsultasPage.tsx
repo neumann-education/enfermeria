@@ -1,29 +1,12 @@
-﻿import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import html2canvas from 'html2canvas'
 import { PDFDocument } from 'pdf-lib'
+import { useLocation } from 'react-router'
 import Layout from './Layout'
 import { consultaService } from './services/consultaService'
-import { useAppData } from './AppDataContext'
+import { useAppData, type HistoryAttendance } from './AppDataContext'
 import toast from 'react-hot-toast'
-
-type HistoryAttendance = {
-  orden: string
-  fechaAtencion: string
-  usuarioId: string
-  nombreCompleto: string
-  dni: string
-  userType: string
-  programa: string
-  ciclo: string
-  periodo: string
-  motivoAtencion: string
-  areaProblematica: string
-  observaciones: string
-  resultado: string
-  correoElectronico: string
-  followUps?: AttendanceFollowUp[]
-}
 
 type AttendanceFollowUp = {
   idSeguimiento: string
@@ -69,17 +52,16 @@ type ExportDateRangeOption = (typeof EXPORT_DATE_RANGE_OPTIONS)[number]
 type FinalizedFollowUpOption = (typeof FINALIZED_FOLLOWUP_OPTIONS)[number]
 
 function ConsultasPage() {
-  const {
-    attendances,
-    attendancesLoading,
-    updateAttendance,
-    appendAttendanceFollowUp,
-  } = useAppData()
+  const location = useLocation()
+  const { attendances, attendancesLoading, updateAttendance } = useAppData()
   const [isSaving, setIsSaving] = useState(false)
   const [selectedAttendance, setSelectedAttendance] =
     useState<HistoryAttendance | null>(null)
   const [receiptAttendance, setReceiptAttendance] =
     useState<HistoryAttendance | null>(null)
+  const [attendanceReceiptEmail, setAttendanceReceiptEmail] = useState('')
+  const [isAttendanceEmailConfirmOpen, setIsAttendanceEmailConfirmOpen] =
+    useState(false)
   const [isSendingAttendanceEmail, setIsSendingAttendanceEmail] =
     useState(false)
   const [attendanceEmailSent, setAttendanceEmailSent] = useState<
@@ -115,6 +97,7 @@ function ConsultasPage() {
   const [editForm, setEditForm] = useState({
     resultado: 'Finalizado',
     observaciones: '',
+    horaSalida: '',
   })
   const [typeFilter, setTypeFilter] =
     useState<(typeof ATTENDANCE_TYPES)[number]>('Todos')
@@ -139,6 +122,11 @@ function ConsultasPage() {
   const [exportIncludeFollowUps, setExportIncludeFollowUps] = useState(true)
   const [exportIncludeContactInfo, setExportIncludeContactInfo] = useState(true)
   const [isExporting, setIsExporting] = useState(false)
+  const motivoFromUrl = useMemo(() => {
+    const searchParams = new URLSearchParams(location.search)
+    return searchParams.get('motivo')?.trim() || ''
+  }, [location.search])
+  const appliedMotivoFromUrlRef = useRef('')
 
   const parseAttendanceDate = (value: string) => {
     const normalized = String(value || '').trim()
@@ -220,6 +208,59 @@ function ConsultasPage() {
 
     return normalized
   }
+
+  const normalizeAttendanceFollowUp = (
+    followUp: AttendanceFollowUp,
+  ): AttendanceFollowUp => ({
+    ...followUp,
+    idSeguimiento: String(followUp.idSeguimiento || '').trim(),
+    fechaSeguimiento: formatDateForDisplay(followUp.fechaSeguimiento),
+  })
+
+  const parseFollowUpDateTime = (followUp: AttendanceFollowUp) => {
+    const date = parseAttendanceDate(followUp.fechaSeguimiento)
+    if (!date) {
+      return null
+    }
+
+    const normalizedTime = String(followUp.hora || '').trim()
+    const timeMatch = normalizedTime.match(/^([0-9]{1,2}):([0-9]{2})/)
+    if (!timeMatch) {
+      return date.getTime()
+    }
+
+    const [, hours, minutes] = timeMatch
+    const combined = new Date(date)
+    combined.setHours(Number(hours), Number(minutes), 0, 0)
+    return combined.getTime()
+  }
+
+  const sortFollowUpsByDate = (followUps: AttendanceFollowUp[]) =>
+    followUps
+      .map((followUp, index) => ({ followUp, index }))
+      .sort((left, right) => {
+        const leftTime = parseFollowUpDateTime(left.followUp)
+        const rightTime = parseFollowUpDateTime(right.followUp)
+
+        if (leftTime === null && rightTime === null) {
+          return left.index - right.index
+        }
+
+        if (leftTime === null) {
+          return 1
+        }
+
+        if (rightTime === null) {
+          return -1
+        }
+
+        if (leftTime !== rightTime) {
+          return leftTime - rightTime
+        }
+
+        return left.index - right.index
+      })
+      .map(({ followUp }) => followUp)
 
   const isAttendanceInDateRange = (
     attendanceDate: string,
@@ -334,6 +375,7 @@ function ConsultasPage() {
             attendance.nombreCompleto,
             attendance.correoElectronico,
             attendance.dni,
+            attendance.motivoAtencion,
           ].some((field) =>
             String(field || '')
               .toLowerCase()
@@ -356,6 +398,74 @@ function ConsultasPage() {
       searchTerm,
     ],
   )
+
+  useEffect(() => {
+    if (!motivoFromUrl) {
+      appliedMotivoFromUrlRef.current = ''
+      return
+    }
+
+    if (searchTerm !== motivoFromUrl) {
+      setSearchTerm(motivoFromUrl)
+    }
+  }, [motivoFromUrl, searchTerm])
+
+  useEffect(() => {
+    if (!motivoFromUrl || attendancesLoading || attendances.length === 0) {
+      return
+    }
+
+    if (appliedMotivoFromUrlRef.current === motivoFromUrl) {
+      return
+    }
+
+    const matchingAttendances = filteredAttendances.filter((attendance) => {
+      const normalizedMotivo = String(attendance.motivoAtencion || '')
+        .toLowerCase()
+        .trim()
+      return normalizedMotivo.includes(motivoFromUrl.toLowerCase())
+    })
+
+    if (matchingAttendances.length === 0) {
+      return
+    }
+
+    appliedMotivoFromUrlRef.current = motivoFromUrl
+
+    setExpandedAttendanceOrders((prev) => {
+      const next = { ...prev }
+      matchingAttendances.forEach((attendance) => {
+        next[attendance.orden] = true
+      })
+      return next
+    })
+
+    void Promise.all(
+      matchingAttendances.map(async (attendance) => {
+        const hasKnownFollowUps =
+          (attendance.followUps?.length ?? 0) > 0 ||
+          (attendanceFollowUps[attendance.orden]?.length ?? 0) > 0
+
+        if (hasKnownFollowUps) {
+          return
+        }
+
+        if (
+          String(attendance.resultado || '')
+            .toLowerCase()
+            .includes('seguimiento')
+        ) {
+          await loadAttendanceFollowUps(attendance.orden)
+        }
+      }),
+    )
+  }, [
+    attendances.length,
+    attendancesLoading,
+    attendanceFollowUps,
+    filteredAttendances,
+    motivoFromUrl,
+  ])
 
   const exportAttendances = useMemo(
     () =>
@@ -497,6 +607,33 @@ function ConsultasPage() {
     searchTerm,
   ])
 
+  useEffect(() => {
+    const shouldLockScroll = Boolean(
+      selectedAttendance ||
+      receiptAttendance ||
+      creatingFollowUpOrder ||
+      followUpToDelete ||
+      isExportModalOpen ||
+      isAttendanceEmailConfirmOpen,
+    )
+
+    const previousOverflow = document.body.style.overflow
+    if (shouldLockScroll) {
+      document.body.style.overflow = 'hidden'
+    }
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [
+    selectedAttendance,
+    receiptAttendance,
+    creatingFollowUpOrder,
+    followUpToDelete,
+    isExportModalOpen,
+    isAttendanceEmailConfirmOpen,
+  ])
+
   const visiblePageNumbers = useMemo(() => {
     if (totalPages <= 5) {
       return Array.from({ length: totalPages }, (_, index) => index + 1)
@@ -526,6 +663,7 @@ function ConsultasPage() {
     setEditForm({
       resultado: attendance.resultado || 'Finalizado',
       observaciones: attendance.observaciones || '',
+      horaSalida: attendance.horaSalida || '',
     })
   }
 
@@ -602,40 +740,28 @@ function ConsultasPage() {
 
     setIsSavingFollowUp(true)
     try {
-      const displayFechaSeguimiento = formatDateForDisplay(
+      const normalizedFechaSeguimiento = formatDateForDateInput(
         newFollowUpForm.fechaSeguimiento,
+      )
+      const displayFechaSeguimiento = formatDateForDisplay(
+        normalizedFechaSeguimiento,
       )
 
       if (editingFollowUp) {
         await consultaService.updateAttendanceFollowUp({
           idSeguimiento: editingFollowUp.idSeguimiento,
           ...newFollowUpForm,
+          fechaSeguimiento: normalizedFechaSeguimiento,
         })
 
-        const updatedFollowUp: AttendanceFollowUp = {
-          ...editingFollowUp,
-          fechaSeguimiento: displayFechaSeguimiento,
-          hora: newFollowUpForm.hora,
-          asistio: newFollowUpForm.asistio,
-          nivelCompromiso: newFollowUpForm.nivelCompromiso,
-          observaciones: newFollowUpForm.observaciones,
-        }
-
-        setAttendanceFollowUps((prev) => ({
-          ...prev,
-          [creatingFollowUpOrder]:
-            prev[creatingFollowUpOrder]?.map((followUp) =>
-              followUp.idSeguimiento === editingFollowUp.idSeguimiento
-                ? updatedFollowUp
-                : followUp,
-            ) || [],
-        }))
+        await loadAttendanceFollowUps(creatingFollowUpOrder, true)
 
         toast.success('Seguimiento actualizado correctamente')
       } else {
         const result = await consultaService.saveAttendanceFollowUp({
           orden: creatingFollowUpOrder,
           ...newFollowUpForm,
+          fechaSeguimiento: normalizedFechaSeguimiento,
         })
 
         const savedFollowUp: AttendanceFollowUp = {
@@ -650,15 +776,12 @@ function ConsultasPage() {
           observaciones: newFollowUpForm.observaciones,
         }
 
-        appendAttendanceFollowUp(creatingFollowUpOrder, savedFollowUp)
-
         setAttendanceFollowUps((prev) => ({
           ...prev,
-          [creatingFollowUpOrder]: [
-            ...(prev[creatingFollowUpOrder] || []),
-            savedFollowUp,
-          ],
+          [creatingFollowUpOrder]: [savedFollowUp],
         }))
+
+        await loadAttendanceFollowUps(creatingFollowUpOrder, true)
 
         toast.success('Seguimiento guardado correctamente')
       }
@@ -688,15 +811,7 @@ function ConsultasPage() {
       await consultaService.deleteAttendanceFollowUp(
         followUpToDelete.followUp.idSeguimiento,
       )
-      setAttendanceFollowUps((prev) => ({
-        ...prev,
-        [followUpToDelete.order]:
-          prev[followUpToDelete.order]?.filter(
-            (followUp) =>
-              followUp.idSeguimiento !==
-              followUpToDelete.followUp.idSeguimiento,
-          ) || [],
-      }))
+      await loadAttendanceFollowUps(followUpToDelete.order, true)
       toast.success('Seguimiento eliminado correctamente')
       setFollowUpToDelete(null)
       if (
@@ -719,10 +834,12 @@ function ConsultasPage() {
     status.toLowerCase().includes('seguimiento')
 
   const getAttendanceFollowUps = (attendance: HistoryAttendance) =>
-    attendanceFollowUps[attendance.orden] || attendance.followUps || []
+    sortFollowUpsByDate(
+      attendanceFollowUps[attendance.orden] || attendance.followUps || [],
+    )
 
-  const loadAttendanceFollowUps = async (orden: string) => {
-    if (attendanceFollowUps[orden] || isLoadingFollowUps[orden]) {
+  const loadAttendanceFollowUps = async (orden: string, force = false) => {
+    if (!force && (attendanceFollowUps[orden] || isLoadingFollowUps[orden])) {
       return
     }
 
@@ -736,7 +853,7 @@ function ConsultasPage() {
         await consultaService.getAttendanceFollowUpsByOrder(orden)
       setAttendanceFollowUps((prev) => ({
         ...prev,
-        [orden]: followUps,
+        [orden]: followUps.map(normalizeAttendanceFollowUp),
       }))
     } catch (error) {
       console.error(error)
@@ -772,6 +889,8 @@ function ConsultasPage() {
 
   const handleCloseReceiptModal = () => {
     setReceiptAttendance(null)
+    setAttendanceReceiptEmail('')
+    setIsAttendanceEmailConfirmOpen(false)
   }
 
   const handleSaveAttendance = async () => {
@@ -785,11 +904,13 @@ function ConsultasPage() {
         orden: selectedAttendance.orden,
         observaciones: editForm.observaciones,
         resultado: editForm.resultado,
+        horaSalida: editForm.horaSalida,
       })
 
       updateAttendance(selectedAttendance.orden, {
         resultado: editForm.resultado,
         observaciones: editForm.observaciones,
+        horaSalida: editForm.horaSalida,
       })
       toast.success('Atención actualizada correctamente')
       setSelectedAttendance(null)
@@ -898,7 +1019,7 @@ function ConsultasPage() {
     const imageWidth = canvas.width * scale
     const imageHeight = canvas.height * scale
     const x = (a4Width - imageWidth) / 2
-    const y = (a4Height - imageHeight) / 2
+    const y = a4Height - imageHeight
 
     page.drawImage(pngImage, {
       x,
@@ -934,8 +1055,23 @@ function ConsultasPage() {
     URL.revokeObjectURL(url)
   }
 
-  const handleSendAttendanceReceipt = async () => {
+  const handleOpenAttendanceEmailConfirm = () => {
     if (!receiptAttendance) {
+      return
+    }
+
+    setAttendanceReceiptEmail(receiptAttendance.correoElectronico || '')
+    setIsAttendanceEmailConfirmOpen(true)
+  }
+
+  const handleCancelAttendanceEmailConfirm = () => {
+    setIsAttendanceEmailConfirmOpen(false)
+    setAttendanceReceiptEmail(receiptAttendance?.correoElectronico || '')
+  }
+
+  const handleSendAttendanceReceipt = async () => {
+    if (!receiptAttendance || !attendanceReceiptEmail.trim()) {
+      toast.error('Debes indicar un correo válido')
       return
     }
 
@@ -944,9 +1080,10 @@ function ConsultasPage() {
       const pdfBase64 = await generateReceiptPdfBase64(true)
       await consultaService.sendAttendanceReceipt({
         orden: receiptAttendance.orden,
-        correoElectronico: receiptAttendance.correoElectronico,
+        correoElectronico: attendanceReceiptEmail.trim(),
         nombreCompleto: receiptAttendance.nombreCompleto,
         dni: receiptAttendance.dni,
+        horaSalida: receiptAttendance.horaSalida,
         programa: receiptAttendance.programa,
         ciclo: receiptAttendance.ciclo,
         seccion: receiptAttendance.userType.toLowerCase().includes('administr')
@@ -961,6 +1098,7 @@ function ConsultasPage() {
         ...prev,
         [receiptAttendance.orden]: true,
       }))
+      setIsAttendanceEmailConfirmOpen(false)
       toast.success('Constancia enviada correctamente')
     } catch (error) {
       console.error(error)
@@ -996,16 +1134,6 @@ function ConsultasPage() {
               Gestión administrativa y seguimiento del Instituto Neumann.
             </p>
           </div>
-          <div className='flex items-center gap-3'>
-            <button
-              type='button'
-              onClick={() => setIsExportModalOpen(true)}
-              className='flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl font-semibold hover:opacity-90 transition-opacity'
-            >
-              <span className='material-symbols-outlined'>download</span>
-              Exportar Reporte
-            </button>
-          </div>
         </section>
 
         <section className='bg-surface-container-lowest rounded-xl shadow-sm border border-slate-50 overflow-hidden'>
@@ -1019,16 +1147,16 @@ function ConsultasPage() {
                       event.target.value as (typeof ATTENDANCE_TYPES)[number],
                     )
                   }
-                  className='min-w-[220px] rounded-full border border-outline-variant/50 bg-surface-container-high px-4 py-2 text-sm font-medium text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/20'
+                  className='sm:min-w-[220px] rounded-full border border-outline-variant/50 bg-surface-container-high px-4 py-2 text-sm font-medium text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/20'
                 >
                   {ATTENDANCE_TYPES.map((type) => (
                     <option key={type} value={type}>
-                      {type === 'Todos' ? 'Todos los estudiantes' : type}
+                      {type === 'Todos' ? 'Todos' : type}
                     </option>
                   ))}
                 </select>
               </div>
-              <div className='flex items-center gap-2 bg-surface-container-high p-1 rounded-lg'>
+              <div className='hidden sm:flex items-center gap-2 bg-surface-container-high p-1 rounded-lg'>
                 {ATTENDANCE_RESULTS.map((status) => (
                   <button
                     key={status}
@@ -1049,6 +1177,27 @@ function ConsultasPage() {
                   </button>
                 ))}
               </div>
+
+              {/* Mobile: use a select for status to avoid overflow */}
+              <div className='sm:hidden w-full'>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => {
+                    const value = e.target
+                      .value as (typeof ATTENDANCE_RESULTS)[number]
+                    setStatusFilter(value)
+                    if (value !== 'Finalizado')
+                      setFinalizedFollowUpFilter('Todos')
+                  }}
+                  className='w-full rounded-full border border-outline-variant/50 bg-surface-container-high px-4 py-2 text-sm font-medium text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/20'
+                >
+                  {ATTENDANCE_RESULTS.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+              </div>
               {statusFilter === 'Finalizado' && (
                 <div>
                   <select
@@ -1058,7 +1207,7 @@ function ConsultasPage() {
                         event.target.value as FinalizedFollowUpOption,
                       )
                     }
-                    className='min-w-[220px] rounded-full border border-outline-variant/50 bg-surface-container-high px-4 py-2 text-sm font-medium text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/20'
+                    className='sm:min-w-[220px] rounded-full border border-outline-variant/50 bg-surface-container-high px-4 py-2 text-sm font-medium text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/20'
                   >
                     {FINALIZED_FOLLOWUP_OPTIONS.map((option) => (
                       <option key={option} value={option}>
@@ -1093,14 +1242,192 @@ function ConsultasPage() {
                 <input
                   value={searchTerm}
                   onChange={(event) => setSearchTerm(event.target.value)}
-                  placeholder='Buscar por nombre, correo o DNI'
+                  placeholder='Buscar por nombre, correo, DNI o motivo...'
                   className='w-full rounded-full border border-outline-variant/50 bg-surface-container-high px-4 py-2 text-sm text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/20'
                 />
               </div>
             </div>
           </div>
 
-          <div className='overflow-x-auto'>
+          {/* Mobile: card list */}
+          <div className='sm:hidden px-4 space-y-4'>
+            {attendancesLoading ? (
+              <div className='p-6 bg-white rounded-2xl shadow-sm text-center text-on-surface-variant'>
+                Cargando historial...
+              </div>
+            ) : filteredAttendances.length === 0 ? (
+              <div className='p-6 bg-white rounded-2xl shadow-sm text-center text-on-surface-variant'>
+                No hay atenciones para mostrar.
+              </div>
+            ) : (
+              paginatedAttendances.map((attendance) => {
+                const followUps = getAttendanceFollowUps(attendance)
+                return (
+                  <div
+                    key={attendance.orden}
+                    className='bg-white rounded-2xl border border-outline-variant/20 p-4 shadow-sm'
+                  >
+                    <div className='flex items-start justify-between gap-3'>
+                      <div className='min-w-0'>
+                        <div className='flex items-center gap-3'>
+                          <div className='w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center font-bold text-primary text-xs'>
+                            {attendance.nombreCompleto
+                              .split(' ')
+                              .map((part) => part[0])
+                              .slice(0, 2)
+                              .join('')}
+                          </div>
+                          <div className='min-w-0'>
+                            <p className='font-bold text-on-surface truncate'>
+                              {attendance.nombreCompleto}
+                            </p>
+                            <p className='text-sm text-on-surface-variant truncate'>
+                              {attendance.fechaAtencion}
+                              {attendance.horaSalida
+                                ? ` · ${attendance.horaSalida}`
+                                : ''}
+                            </p>
+                          </div>
+                        </div>
+                        <p className='mt-3 text-sm text-on-surface line-clamp-2'>
+                          {attendance.motivoAtencion ||
+                            attendance.areaProblematica}
+                        </p>
+                      </div>
+
+                      <div className='flex flex-col items-end gap-2'>
+                        <span
+                          className={`px-3 py-1 rounded-full text-[12px] font-bold ${getStatusBadge(attendance.resultado)}`}
+                        >
+                          {attendance.resultado || 'Sin resultado'}
+                        </span>
+                        <div className='flex items-center gap-2'>
+                          {(isSeguimientoStatus(attendance.resultado) ||
+                            (attendance.followUps?.length ?? 0) > 0 ||
+                            (attendanceFollowUps[attendance.orden]?.length ??
+                              0) > 0) && (
+                            <button
+                              type='button'
+                              onClick={() =>
+                                toggleAttendanceFollowUps(attendance)
+                              }
+                              className='rounded-full p-2 text-on-surface-variant hover:bg-surface-container-high transition'
+                              aria-label='Ver seguimientos'
+                            >
+                              <span className='material-symbols-outlined'>
+                                {expandedAttendanceOrders[attendance.orden]
+                                  ? 'expand_less'
+                                  : 'expand_more'}
+                              </span>
+                            </button>
+                          )}
+                          <button
+                            type='button'
+                            onClick={() => handleOpenReceiptModal(attendance)}
+                            className='rounded-full p-2 text-on-surface-variant hover:bg-surface-container-high transition'
+                            aria-label='Ver constancia'
+                          >
+                            <span className='material-symbols-outlined'>
+                              receipt_long
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {expandedAttendanceOrders[attendance.orden] && (
+                      <div className='mt-4 border-t border-outline-variant/20 pt-4 space-y-3'>
+                        {isLoadingFollowUps[attendance.orden] ? (
+                          <p className='text-sm text-on-surface-variant'>
+                            Cargando seguimientos...
+                          </p>
+                        ) : followUps.length === 0 ? (
+                          <div className='rounded-3xl border border-dashed border-outline-variant/20 bg-surface-container-low p-4 text-center'>
+                            <p className='text-sm font-semibold text-on-surface'>
+                              No hay seguimientos aún
+                            </p>
+                          </div>
+                        ) : (
+                          followUps.map((followUp, index) => {
+                            const asistioLabel =
+                              followUp.asistio !== ''
+                                ? followUp.asistio
+                                : 'Pendiente'
+
+                            const commitmentLabel =
+                              followUp.nivelCompromiso || 'Sin nivel'
+
+                            return (
+                              <div
+                                key={followUp.idSeguimiento}
+                                className='rounded-2xl border border-outline-variant/20 bg-white p-4 shadow-sm'
+                              >
+                                <div className='flex items-start justify-between gap-3'>
+                                  <div className='min-w-0'>
+                                    <p className='text-xs font-bold uppercase tracking-[0.24em] text-on-surface-variant'>
+                                      Seguimiento {index + 1}
+                                    </p>
+                                    <p className='mt-2 text-sm font-semibold text-on-surface'>
+                                      Fecha y hora
+                                    </p>
+                                    <p className='text-sm text-on-surface-variant'>
+                                      {followUp.fechaSeguimiento}
+                                      {followUp.hora
+                                        ? ` · ${followUp.hora}`
+                                        : ''}
+                                    </p>
+                                  </div>
+                                  <button
+                                    type='button'
+                                    onClick={() =>
+                                      handleEditFollowUp(attendance, followUp)
+                                    }
+                                    className='rounded-full p-2 text-on-surface-variant hover:bg-surface-container-high transition'
+                                    aria-label='Editar seguimiento'
+                                  >
+                                    <span className='material-symbols-outlined text-sm'>
+                                      edit
+                                    </span>
+                                  </button>
+                                </div>
+
+                                <div className='mt-3 flex flex-wrap gap-2'>
+                                  <span className='inline-flex items-center gap-2 rounded-full bg-secondary/10 px-3 py-1 text-xs font-semibold text-secondary'>
+                                    <span className='material-symbols-outlined text-[14px]'>
+                                      event_available
+                                    </span>
+                                    Asistió: {asistioLabel}
+                                  </span>
+                                  <span className='inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary'>
+                                    <span className='material-symbols-outlined text-[14px]'>
+                                      trending_up
+                                    </span>
+                                    Compromiso: {commitmentLabel}
+                                  </span>
+                                </div>
+
+                                <div className='mt-3 rounded-xl bg-surface-container-low px-3 py-2'>
+                                  <p className='text-[11px] font-semibold uppercase tracking-[0.2em] text-on-surface-variant'>
+                                    Observaciones
+                                  </p>
+                                  <p className='mt-1 text-sm text-on-surface'>
+                                    {followUp.observaciones ||
+                                      'Sin observaciones'}
+                                  </p>
+                                </div>
+                              </div>
+                            )
+                          })
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })
+            )}
+          </div>
+
+          <div className='hidden sm:block overflow-x-auto'>
             <table className='w-full text-left border-collapse'>
               <thead className='bg-surface-container-low'>
                 <tr>
@@ -1237,32 +1564,41 @@ function ConsultasPage() {
                           <tr className='bg-surface-container-lowest'>
                             <td colSpan={6} className='px-6 py-4'>
                               <div className='rounded-3xl border border-outline-variant/20 bg-white p-4'>
-                                <div className='mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
-                                  <div>
-                                    <p className='text-base font-semibold text-on-surface'>
-                                      Seguimientos de la atención
-                                    </p>
-                                    <p className='text-sm text-on-surface-variant'>
-                                      {followUps.length} seguimiento(s)
-                                      registrado(s)
-                                    </p>
-                                  </div>
-                                  <div className='flex flex-wrap items-center gap-2'>
-                                    <button
-                                      type='button'
-                                      onClick={() =>
-                                        handleStartNewFollowUp(attendance)
-                                      }
-                                      className='inline-flex items-center gap-2 rounded-full bg-secondary px-4 py-2 text-sm font-semibold text-white hover:bg-secondary/90 transition'
-                                    >
-                                      <span className='material-symbols-outlined text-base'>
-                                        add_circle
+                                <div className='mb-5 flex flex-wrap items-center justify-between gap-4'>
+                                  <div className='flex items-center gap-4'>
+                                    <div className='flex h-12 w-12 items-center justify-center rounded-2xl bg-secondary/10 text-secondary'>
+                                      <span className='material-symbols-outlined'>
+                                        assignment
                                       </span>
-                                      {followUps.length > 0
-                                        ? 'Agregar seguimiento'
-                                        : 'Crear seguimiento'}
-                                    </button>
+                                    </div>
+
+                                    <div>
+                                      <p className='text-base font-semibold text-on-surface'>
+                                        Seguimientos de la atención
+                                      </p>
+
+                                      <p className='text-sm text-on-surface-variant'>
+                                        {followUps.length} seguimiento(s)
+                                        registrado(s)
+                                      </p>
+                                    </div>
                                   </div>
+
+                                  <button
+                                    type='button'
+                                    onClick={() =>
+                                      handleStartNewFollowUp(attendance)
+                                    }
+                                    className='inline-flex items-center gap-2 rounded-full bg-secondary px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-secondary/90'
+                                  >
+                                    <span className='material-symbols-outlined text-base'>
+                                      add_circle
+                                    </span>
+
+                                    {followUps.length > 0
+                                      ? 'Agregar seguimiento'
+                                      : 'Crear seguimiento'}
+                                  </button>
                                 </div>
                                 {isLoadingFollowUps[attendance.orden] ? (
                                   <p className='text-sm text-on-surface-variant'>
@@ -1279,79 +1615,108 @@ function ConsultasPage() {
                                     </p>
                                   </div>
                                 ) : (
-                                  <div className='space-y-4'>
-                                    {followUps.map((followUp) => {
+                                  <div className='space-y-3'>
+                                    {followUps.map((followUp, index) => {
                                       const asistioLabel =
                                         followUp.asistio !== ''
                                           ? followUp.asistio
                                           : 'Pendiente'
+
                                       const commitmentLabel =
                                         followUp.nivelCompromiso || 'Sin nivel'
+
+                                      const labelChipClass =
+                                        'inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold'
+
                                       return (
                                         <div
                                           key={followUp.idSeguimiento}
-                                          className='rounded-3xl border border-outline-variant/20 bg-white p-5 shadow-sm'
+                                          className='rounded-3xl border border-outline-variant/20 bg-white p-5 shadow-sm transition hover:shadow-md'
                                         >
-                                          <div className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
+                                          <div className='grid gap-4 lg:grid-cols-[1.1fr_0.9fr_1.2fr_auto] lg:items-start'>
+                                            {/* INFO */}
                                             <div className='min-w-0'>
-                                              <div className='flex items-center justify-between gap-3'>
-                                                <p className='text-sm font-semibold text-on-surface'>
+                                              <p className='text-xs font-bold uppercase tracking-[0.24em] text-on-surface-variant'>
+                                                Seguimiento {index + 1}
+                                              </p>
+                                              <div className='mt-2 rounded-2xl bg-surface-container-low px-4 py-3'>
+                                                <p className='text-[11px] font-semibold uppercase tracking-[0.2em] text-on-surface-variant'>
+                                                  Fecha y hora
+                                                </p>
+                                                <p className='mt-1 text-sm font-semibold text-on-surface'>
                                                   {followUp.fechaSeguimiento}
                                                   {followUp.hora
                                                     ? ` · ${followUp.hora}`
                                                     : ''}
                                                 </p>
-                                                <div className='flex items-center gap-2'>
-                                                  <button
-                                                    type='button'
-                                                    onClick={() =>
-                                                      handleEditFollowUp(
-                                                        attendance,
-                                                        followUp,
-                                                      )
-                                                    }
-                                                    className='rounded-full p-2 text-on-surface-variant hover:bg-surface-container-high transition'
-                                                    aria-label='Editar seguimiento'
-                                                  >
-                                                    <span className='material-symbols-outlined text-sm'>
-                                                      edit
-                                                    </span>
-                                                  </button>
-                                                  <button
-                                                    type='button'
-                                                    onClick={() =>
-                                                      setFollowUpToDelete({
-                                                        order: attendance.orden,
-                                                        followUp,
-                                                      })
-                                                    }
-                                                    className='rounded-full p-2 text-on-surface-variant hover:bg-surface-container-high transition'
-                                                    aria-label='Eliminar seguimiento'
-                                                  >
-                                                    <span className='material-symbols-outlined text-sm'>
-                                                      delete
-                                                    </span>
-                                                  </button>
-                                                </div>
-                                              </div>
-                                              <div className='mt-3 flex flex-wrap gap-2'>
-                                                <span className='inline-flex items-center gap-2 rounded-full bg-secondary/10 px-3 py-1 text-xs font-semibold text-secondary'>
-                                                  <span className='material-symbols-outlined text-[14px]'>
-                                                    event_available
-                                                  </span>
-                                                  {asistioLabel}
-                                                </span>
-                                                <span className='inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary'>
-                                                  <span className='material-symbols-outlined text-[14px]'>
-                                                    trending_up
-                                                  </span>
-                                                  {commitmentLabel}
-                                                </span>
                                               </div>
                                             </div>
-                                            <div className='rounded-2xl border border-outline-variant/50 bg-surface-container-low p-4 text-sm leading-relaxed text-on-surface'>
-                                              {followUp.observaciones ||
-                                                'Sin observaciones'}
+
+                                            {/* BADGES */}
+                                            <div className='flex flex-wrap gap-2'>
+                                              <span
+                                                className={`${labelChipClass} bg-secondary/10 text-secondary`}
+                                              >
+                                                <span className='material-symbols-outlined text-[14px]'>
+                                                  event_available
+                                                </span>
+                                                Asistió: {asistioLabel}
+                                              </span>
+
+                                              <span
+                                                className={`${labelChipClass} bg-primary/10 text-primary`}
+                                              >
+                                                <span className='material-symbols-outlined text-[14px]'>
+                                                  trending_up
+                                                </span>
+                                                Compromiso: {commitmentLabel}
+                                              </span>
+                                            </div>
+
+                                            {/* OBSERVACIONES */}
+                                            <div className='rounded-2xl border border-outline-variant/40 bg-surface-container-low px-4 py-3 text-sm leading-relaxed text-on-surface'>
+                                              <p className='text-[11px] font-semibold uppercase tracking-[0.2em] text-on-surface-variant'>
+                                                Observaciones
+                                              </p>
+                                              <p className='mt-1'>
+                                                {followUp.observaciones ||
+                                                  'Sin observaciones'}
+                                              </p>
+                                            </div>
+
+                                            {/* ACTIONS */}
+                                            <div className='flex items-center justify-end gap-2 lg:pt-1'>
+                                              <button
+                                                type='button'
+                                                onClick={() =>
+                                                  handleEditFollowUp(
+                                                    attendance,
+                                                    followUp,
+                                                  )
+                                                }
+                                                className='rounded-full p-2 text-on-surface-variant transition hover:bg-surface-container-high'
+                                                aria-label='Editar seguimiento'
+                                              >
+                                                <span className='material-symbols-outlined text-sm'>
+                                                  edit
+                                                </span>
+                                              </button>
+
+                                              <button
+                                                type='button'
+                                                onClick={() =>
+                                                  setFollowUpToDelete({
+                                                    order: attendance.orden,
+                                                    followUp,
+                                                  })
+                                                }
+                                                className='rounded-full p-2 text-on-surface-variant transition hover:bg-surface-container-high'
+                                                aria-label='Eliminar seguimiento'
+                                              >
+                                                <span className='material-symbols-outlined text-sm'>
+                                                  delete
+                                                </span>
+                                              </button>
                                             </div>
                                           </div>
                                         </div>
@@ -1661,6 +2026,23 @@ function ConsultasPage() {
                           {selectedAttendance.fechaAtencion}
                         </p>
                       </div>
+                      <div>
+                        <p className='text-sm font-semibold text-on-surface'>
+                          Hora de salida
+                        </p>
+                        <input
+                          type='time'
+                          value={editForm.horaSalida}
+                          onChange={(event) =>
+                            setEditForm((prev) => ({
+                              ...prev,
+                              horaSalida: event.target.value,
+                            }))
+                          }
+                          disabled={isSaving}
+                          className='mt-2 w-full rounded-xl border border-outline-variant/50 bg-surface px-4 py-3 text-on-surface disabled:cursor-not-allowed disabled:opacity-50'
+                        />
+                      </div>
                     </div>
                     {!selectedAttendance.userType
                       .toLowerCase()
@@ -1929,7 +2311,7 @@ function ConsultasPage() {
 
           {followUpToDelete &&
             createPortal(
-              <div className='fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4'>
+              <div className='fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-2 lg:p-4'>
                 <div className='w-full max-w-lg rounded-[32px] bg-white border border-slate-200 p-6 shadow-2xl'>
                   <div className='flex items-center justify-between gap-4 pb-4 border-b border-slate-200'>
                     <div>
@@ -1983,188 +2365,302 @@ function ConsultasPage() {
 
           {receiptAttendance &&
             createPortal(
-              <div className='fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4'>
-                <div className='w-full max-w-5xl rounded-3xl bg-white shadow-2xl overflow-hidden relative'>
-                  <div className='flex items-center justify-between border-b border-surface-variant px-6 py-4'>
+              <div className='fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-2'>
+                <div className='relative h-[65vh] w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl'>
+                  {/* HEADER */}
+                  <div className='flex items-center justify-between border-b border-surface-variant px-5 py-2'>
                     <div>
-                      <p className='text-xs font-bold uppercase tracking-widest text-on-surface-variant'>
+                      <p className='text-[10px] font-bold uppercase tracking-widest text-on-surface-variant'>
                         Constancia de atención
                       </p>
-                      <h3 className='text-xl font-bold text-on-surface'>
+                      <h3 className='text-base font-bold text-on-surface'>
                         Orden {receiptAttendance.orden}
                       </h3>
-                      <p className='text-sm text-on-surface-variant'>
+                      <p className='text-xs text-on-surface-variant'>
                         {receiptAttendance.nombreCompleto} •{' '}
                         {receiptAttendance.userType}
                       </p>
                     </div>
+
                     <button
                       type='button'
                       onClick={handleCloseReceiptModal}
-                      className='rounded-full p-2 text-on-surface-variant hover:bg-surface-container-high transition'
-                      aria-label='Cerrar constancia'
+                      className='rounded-full p-2 text-on-surface-variant hover:bg-surface-container-high'
                     >
-                      <span className='material-symbols-outlined'>close</span>
+                      <span className='material-symbols-outlined text-base'>
+                        close
+                      </span>
                     </button>
                   </div>
-                  <div className='max-h-[80vh] overflow-y-auto px-6 py-6 space-y-4'>
-                    <div className='rounded-3xl border border-outline-variant/20 bg-[#f5f3ff] overflow-hidden'>
-                      <div ref={receiptPreviewRef} className='overflow-hidden'>
-                        <div className='flex flex-col md:flex-row border-t border-b border-outline-variant/20'>
-                          <div className='flex w-full flex-col justify-between bg-[#673AB6] p-5 text-white md:w-[260px]'>
-                            <div>
-                              <img
-                                src='https://res.cloudinary.com/detbcxpfb/image/upload/v1775600238/resultado_qprg0t.png'
-                                alt='Logo'
-                                crossOrigin='anonymous'
-                                style={{
-                                  width: '180px',
-                                  marginBottom: '40px',
-                                }}
-                              />
-                              <h3 className='text-lg font-semibold'>
-                                Atención de Enfermería
-                              </h3>
-                              <p className='mt-3 text-sm text-white/80'>
-                                Registro oficial de atención médica
-                              </p>
+
+                  {/* BODY */}
+                  <div className='max-h-[68vh] overflow-y-auto px-4 py-2 space-y-2'>
+                    {/* ACTIONS */}
+                    <div className='flex items-center justify-between gap-2'>
+                      <button
+                        type='button'
+                        onClick={downloadAttendanceReceipt}
+                        className='inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-white'
+                      >
+                        <span className='material-symbols-outlined text-sm'>
+                          download
+                        </span>
+                        Descargar
+                      </button>
+
+                      <button
+                        type='button'
+                        onClick={handleOpenAttendanceEmailConfirm}
+                        disabled={
+                          !receiptAttendance.correoElectronico ||
+                          isSendingAttendanceEmail
+                        }
+                        className='inline-flex items-center gap-2 rounded-full bg-secondary px-4 py-2 text-xs font-semibold text-white disabled:opacity-50'
+                      >
+                        <span className='material-symbols-outlined text-sm'>
+                          email
+                        </span>
+                        {attendanceEmailSent[receiptAttendance.orden]
+                          ? 'Reenviar'
+                          : 'Enviar'}
+                      </button>
+                    </div>
+
+                    {/* RECEIPT */}
+                    <div className='overflow-hidden rounded-2xl border bg-[#f5f3ff]'>
+                      <div
+                        ref={receiptPreviewRef}
+                        className='flex flex-col md:flex-row border-b border-gray-300'
+                      >
+                        {/* LEFT */}
+                        <div className='flex w-full flex-col justify-between bg-[#673AB6] p-3 text-white md:w-[200px]'>
+                          <div>
+                            <img
+                              src='https://res.cloudinary.com/detbcxpfb/image/upload/v1775600238/resultado_qprg0t.png'
+                              alt='Logo'
+                              style={{ width: '130px', marginBottom: '16px' }}
+                            />
+
+                            <h3 className='text-sm font-semibold'>
+                              Atención de Enfermería
+                            </h3>
+
+                            <p className='mt-1 text-[11px] text-white/80'>
+                              Registro médico oficial
+                            </p>
+                          </div>
+
+                          <div className='text-[10px] opacity-80'>
+                            IES NEUMANN
+                          </div>
+                        </div>
+
+                        {/* RIGHT */}
+                        <div className='flex-1 bg-white p-3'>
+                          {/* TITLE */}
+                          <div className='mb-2'>
+                            <h4 className='text-lg font-bold text-[#673AB6]'>
+                              Constancia de Atención
+                            </h4>
+                            <div className='mt-1 h-1 w-12 bg-[#673AB6]' />
+                          </div>
+
+                          {/* USER */}
+                          <div className='mb-2 rounded-xl bg-[#f5f3ff] p-2'>
+                            <div className='text-[10px] uppercase tracking-widest text-[#666]'>
+                              {receiptAttendance.userType?.toUpperCase() ||
+                                'USUARIO'}
                             </div>
-                            <div className='text-xs opacity-80'>
-                              Instituto de Educación Superior
-                              <br />
-                              NEUMANN
+
+                            <div className='text-base font-semibold'>
+                              {receiptAttendance.nombreCompleto || '—'}
+                            </div>
+
+                            <div className='mt-1 grid grid-cols-1 gap-2 text-xs text-[#444] md:grid-cols-4'>
+                              <div className='rounded-xl border border-[#ececec] bg-white px-2 py-1'>
+                                <div className='text-[10px] uppercase tracking-[0.2em] text-gray-500'>
+                                  DNI
+                                </div>
+                                <div className='mt-1 font-semibold text-slate-700'>
+                                  {receiptAttendance.dni || '-'}
+                                </div>
+                              </div>
+                              <div className='rounded-xl border border-[#ececec] bg-white px-2 py-1'>
+                                <div className='text-[10px] uppercase tracking-[0.2em] text-gray-500'>
+                                  ORDEN
+                                </div>
+                                <div className='mt-1 font-semibold text-slate-700'>
+                                  {receiptAttendance.orden || '-'}
+                                </div>
+                              </div>
+                              <div className='rounded-xl border border-[#ececec] bg-white px-2 py-1'>
+                                <div className='text-[10px] uppercase tracking-[0.2em] text-gray-500'>
+                                  FECHA
+                                </div>
+                                <div className='mt-1 font-semibold text-slate-700'>
+                                  {receiptAttendance.fechaAtencion || '-'}
+                                </div>
+                              </div>
+                              <div className='rounded-xl border border-[#ececec] bg-white px-2 py-1'>
+                                <div className='text-[10px] uppercase tracking-[0.2em] text-gray-500'>
+                                  HORA DE SALIDA
+                                </div>
+                                <div className='mt-1 font-semibold text-slate-700'>
+                                  {receiptAttendance.horaSalida || '-'}
+                                </div>
+                              </div>
                             </div>
                           </div>
-                          <div className='flex-1 bg-white p-5 md:p-6'>
-                            <div className='mb-5'>
-                              <h4 className='text-2xl font-bold text-[#673AB6]'>
-                                Constancia de Atención
-                              </h4>
-                              <div className='mt-2 h-1 w-16 rounded-full bg-[#673AB6]' />
-                            </div>
-                            <div className='rounded-2xl bg-[#f5f3ff] p-4 mb-4'>
-                              <div className='text-[11px] uppercase tracking-[0.3em] text-[#666]'>
-                                {receiptAttendance.userType
-                                  ? receiptAttendance.userType.toUpperCase()
-                                  : 'USUARIO'}
+
+                          {/* GRID */}
+                          <div className='mb-2 grid grid-cols-2 gap-2 md:grid-cols-3'>
+                            <div className='rounded-xl border p-1 px-2'>
+                              <div className='text-[10px] text-gray-500'>
+                                Programa
                               </div>
-                              <div className='mt-2 text-xl font-semibold text-on-surface'>
-                                {receiptAttendance.nombreCompleto || '—'}
-                              </div>
-                              <div className='mt-3 text-sm text-[#444]'>
-                                DNI: {receiptAttendance.dni || '—'}
-                              </div>
-                              <div className='mt-1 text-sm text-[#444]'>
-                                N° ORDEN: {receiptAttendance.orden || '—'}
-                              </div>
-                              <div className='mt-1 text-sm text-[#444]'>
-                                FECHA: {receiptAttendance.fechaAtencion || '—'}
+                              <div className='text-xs font-semibold'>
+                                {receiptAttendance.programa || '—'}
                               </div>
                             </div>
-                            <div className='grid grid-cols-1 gap-3 md:grid-cols-3 mb-4'>
-                              <div className='rounded-2xl border border-[#eee] bg-white p-4'>
-                                <div className='text-[11px] uppercase tracking-[0.3em] text-[#888]'>
-                                  Programa
-                                </div>
-                                <div className='mt-2 text-sm font-semibold text-on-surface'>
-                                  {receiptAttendance.programa || '—'}
-                                </div>
-                              </div>
-                              <div className='rounded-2xl border border-[#eee] bg-white p-4'>
-                                <div className='text-[11px] uppercase tracking-[0.3em] text-[#888]'>
+
+                            <div className='flex  justify-between rounded-xl border p-1 px-2'>
+                              <div>
+                                <div className='text-[10px] text-gray-500'>
                                   Ciclo
                                 </div>
-                                <div className='mt-2 text-sm font-semibold text-on-surface'>
+                                <div className='text-xs font-semibold'>
                                   {receiptAttendance.ciclo || '—'}
                                 </div>
                               </div>
-                              <div className='rounded-2xl border border-[#eee] bg-white p-4'>
-                                <div className='text-[11px] uppercase tracking-[0.3em] text-[#888]'>
-                                  Periodo
+                              <div>
+                                <div className='text-[10px] text-gray-500'>
+                                  Sección
                                 </div>
-                                <div className='mt-2 text-sm font-semibold text-on-surface'>
-                                  {receiptAttendance.periodo || '—'}
-                                </div>
-                              </div>
-                            </div>
-                            <div className='mb-4'>
-                              <div className='text-[11px] uppercase tracking-[0.3em] text-[#666] mb-2'>
-                                MOTIVO DE ATENCIÓN
-                              </div>
-                              <div className='rounded-2xl border border-[#eee] bg-[#fafafa] p-4 text-sm leading-relaxed text-slate-700 min-h-[70px]'>
-                                {receiptAttendance.motivoAtencion || '—'}
-                              </div>
-                            </div>
-                            <div className='mb-4'>
-                              <div className='text-[11px] uppercase tracking-[0.3em] text-[#666] mb-2'>
-                                RECOMENDACIONES
-                              </div>
-                              <div className='rounded-2xl border border-[#eee] bg-[#fafafa] p-4 text-sm leading-relaxed text-slate-700 min-h-[70px]'>
-                                {receiptAttendance.observaciones || '—'}
-                              </div>
-                            </div>
-                            <div className='receipt-signature pt-6'>
-                              <img
-                                src='firmaEjemplo.png'
-                                alt='Firma de ejemplo'
-                                className='h-24 w-auto object-contain'
-                              />
-                            </div>
-                            <div className='border-slate-200 flex justify-between'>
-                              <div className='text-center'>
-                                <div className='mx-auto mb-2 h-px w-44 bg-slate-300' />
-                                <div className='text-xs text-slate-600'>
-                                  Lic. en Enfermería
+                                <div className='text-xs font-semibold'>
+                                  {receiptAttendance.seccion || '—'}
                                 </div>
                               </div>
-                              <div className='mt-3 text-sm text-slate-600'>
-                                {new Date().toLocaleDateString('es-ES', {
-                                  day: '2-digit',
-                                  month: 'long',
-                                  year: 'numeric',
-                                })}
+                            </div>
+
+                            <div className='rounded-xl border p-1 px-2'>
+                              <div className='text-[10px] text-gray-500'>
+                                Periodo
+                              </div>
+                              <div className='text-xs font-semibold'>
+                                {receiptAttendance.periodo || '—'}
                               </div>
                             </div>
+                          </div>
+
+                          {/* TEXT AREAS */}
+                          <div className='mb-2'>
+                            <div className='text-[10px] uppercase text-gray-500 mb-1'>
+                              Motivo
+                            </div>
+                            <div className='rounded-xl bg-gray-50 p-2 text-xs min-h-[40px]'>
+                              {receiptAttendance.motivoAtencion || '—'}
+                            </div>
+                          </div>
+
+                          <div className='mb-2'>
+                            <div className='text-[10px] uppercase text-gray-500 mb-1'>
+                              Recomendaciones
+                            </div>
+                            <div className='rounded-xl bg-gray-50 p-2 text-xs min-h-[40px]'>
+                              {receiptAttendance.observaciones || '—'}
+                            </div>
+                          </div>
+
+                          {/* SIGNATURE */}
+                          {/* <img
+                            src='firmaEjemplo.png'
+                            className='h-14 object-contain'
+                            alt='firma'
+                          /> */}
+                          <div className='h-14 object-contain'></div>
+
+                          {/* FOOTER */}
+                          <div className='mt-2 flex justify-between text-xs text-gray-600'>
+                            <span>Lic. Irma Rosario Mamani Mayta</span>
+                            <span>
+                              {new Date().toLocaleDateString('es-ES', {
+                                day: '2-digit',
+                                month: 'long',
+                                year: 'numeric',
+                              })}
+                            </span>
                           </div>
                         </div>
                       </div>
                     </div>
-                    <div className='flex items-center justify-between gap-3'>
+                  </div>
+                </div>
+              </div>,
+              document.body,
+            )}
+          {receiptAttendance &&
+            isAttendanceEmailConfirmOpen &&
+            createPortal(
+              <div className='fixed inset-0 z-[110] flex items-center justify-center bg-black/50 p-4'>
+                <div className='w-full max-w-xl rounded-3xl bg-white shadow-2xl overflow-hidden'>
+                  <div className='flex items-center justify-between border-b border-surface-variant px-6 py-4'>
+                    <div>
+                      <p className='text-xs font-bold uppercase tracking-widest text-on-surface-variant'>
+                        Confirmar envío
+                      </p>
+                      <h3 className='text-xl font-bold text-on-surface'>
+                        Revisar correo de destino
+                      </h3>
+                    </div>
+                    <button
+                      type='button'
+                      onClick={handleCancelAttendanceEmailConfirm}
+                      className='rounded-full p-2 text-on-surface-variant hover:bg-surface-container-high transition'
+                      aria-label='Cerrar confirmación'
+                    >
+                      <span className='material-symbols-outlined'>close</span>
+                    </button>
+                  </div>
+                  <div className='space-y-5 px-6 py-6'>
+                    <p className='text-sm text-on-surface-variant'>
+                      El correo se enviará a esta dirección. Si necesitas
+                      cambiarla, edítala antes de confirmar.
+                    </p>
+                    <label className='block space-y-2'>
+                      <span className='text-sm font-semibold text-on-surface'>
+                        Correo electrónico
+                      </span>
+                      <input
+                        type='email'
+                        value={attendanceReceiptEmail}
+                        onChange={(e) =>
+                          setAttendanceReceiptEmail(e.target.value)
+                        }
+                        className='w-full rounded-2xl border border-outline-variant bg-white px-4 py-3 text-sm text-on-surface outline-none transition focus:border-primary'
+                        placeholder='correo@dominio.com'
+                      />
+                    </label>
+                    <div className='flex flex-col gap-3 sm:flex-row sm:justify-end'>
                       <button
                         type='button'
-                        onClick={downloadAttendanceReceipt}
-                        className='inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-white hover:bg-primary/90 transition'
+                        onClick={handleCancelAttendanceEmailConfirm}
+                        className='rounded-full border border-outline-variant/50 px-5 py-3 text-sm font-semibold text-on-surface-variant hover:bg-surface-container-high transition'
                       >
-                        <span className='material-symbols-outlined text-base'>
-                          download
-                        </span>
-                        Descargar constancia
+                        Cancelar
                       </button>
-                      <div className='flex items-center gap-3'>
-                        <button
-                          type='button'
-                          onClick={handleSendAttendanceReceipt}
-                          disabled={
-                            !receiptAttendance.correoElectronico ||
-                            isSendingAttendanceEmail
-                          }
-                          className='inline-flex items-center gap-2 rounded-full bg-secondary text-white px-5 py-3 text-sm font-semibold hover:bg-secondary/90 transition disabled:cursor-not-allowed disabled:opacity-50'
-                        >
-                          <span className='material-symbols-outlined text-base'>
-                            email
-                          </span>
-                          {attendanceEmailSent[receiptAttendance.orden]
-                            ? 'Reenviar constancia virtual'
-                            : 'Enviar constancia virtual'}
-                        </button>
-                        <button
-                          type='button'
-                          onClick={handleCloseReceiptModal}
-                          className='rounded-full border border-outline-variant/50 px-5 py-3 text-sm font-semibold text-on-surface-variant hover:bg-surface-container-high transition'
-                        >
-                          Cerrar
-                        </button>
-                      </div>
+                      <button
+                        type='button'
+                        onClick={handleSendAttendanceReceipt}
+                        disabled={
+                          !attendanceReceiptEmail.trim() ||
+                          isSendingAttendanceEmail
+                        }
+                        className='rounded-full bg-secondary px-5 py-3 text-sm font-semibold text-white hover:bg-secondary/90 transition disabled:cursor-not-allowed disabled:opacity-50'
+                      >
+                        {isSendingAttendanceEmail
+                          ? 'Enviando...'
+                          : 'Confirmar y enviar'}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -2177,4 +2673,4 @@ function ConsultasPage() {
   )
 }
 
-export default ConsultasPage
+export default ConsultasPage  

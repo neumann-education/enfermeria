@@ -53,15 +53,22 @@ function Layout({ title, header, activeView, children }: LayoutProps) {
     setMobileNavOpen(false)
   }
 
+  const handleNewConsultation = () => {
+    navigate('/registration?restart=1')
+    setMobileNavOpen(false)
+  }
+
   return (
     <div className='bg-surface text-on-surface min-h-screen flex'>
       <aside className='hidden md:flex flex-col h-screen w-64 fixed left-0 top-0 border-r border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 z-50'>
         <div className='p-6 border-b border-slate-200 dark:border-slate-800'>
           <div className='flex items-center gap-3'>
-            <div className='w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white'>
-              <span className='material-symbols-outlined'>
-                medical_services
-              </span>
+            <div className='w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white '>
+              <img
+                src='favicon.png'
+                alt='Logo'
+                className='w-8 h-8 filter contrast-200 brightness-0 invert p-1'
+              />
             </div>
             <div>
               <h1 className='text-2xl font-black text-violet-700 dark:text-violet-500 tracking-tight'>
@@ -99,7 +106,7 @@ function Layout({ title, header, activeView, children }: LayoutProps) {
 
         <div className='p-6 mt-auto'>
           <button
-            onClick={() => handleNavigate('registration')}
+            onClick={handleNewConsultation}
             className='w-full py-3 px-4 bg-primary text-white rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all'
           >
             <span className='material-symbols-outlined text-sm'>add</span>
@@ -216,9 +223,7 @@ function Layout({ title, header, activeView, children }: LayoutProps) {
           </nav>
           <div className='mt-6'>
             <button
-              onClick={() => {
-                handleNavigate('registration')
-              }}
+              onClick={handleNewConsultation}
               className='w-full py-1 px-4 bg-primary text-white rounded-2xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all'
             >
               <span className='material-symbols-outlined text-sm'>add</span>

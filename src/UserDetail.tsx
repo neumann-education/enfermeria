@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate, useParams } from 'react-router'
+import ExcelJS from 'exceljs'
 import html2canvas from 'html2canvas'
 import { PDFDocument } from 'pdf-lib'
 import Layout from './Layout'
 import { consultaService } from './services/consultaService'
 import toast from 'react-hot-toast'
+import { DEFAULT_ACADEMIC_PERIOD } from './constants/academicPeriod'
+import { isMaleSex } from './utils/sex'
 
 type PatientDetail = {
   id: string
@@ -29,6 +32,16 @@ type PatientDetail = {
   fechaUltimaActualizacion: string
 }
 
+type AttendanceFollowUp = {
+  idSeguimiento?: string
+  orden?: string
+  fechaSeguimiento?: string
+  hora?: string
+  asistio?: string
+  nivelCompromiso?: string
+  observaciones?: string
+}
+
 type AttendanceSummary = {
   orden: string
   fechaAtencion: string
@@ -40,12 +53,14 @@ type AttendanceSummary = {
   correoElectronico: string
   programa: string
   ciclo: string
+  seccion: string
   periodo: string
   motivoAtencion: string
   areaProblematica: string
   medioContacto: string
   observaciones: string
   resultado: string
+  followUps?: AttendanceFollowUp[]
 }
 
 type DisabilityDetails = {
@@ -60,6 +75,7 @@ type DisabilityFollowUp = {
   estudianteRegular?: string
   carrera?: string
   ciclo?: string
+  seccion?: string
   turno?: string
   observaciones?: string
   fechaRegistro?: string
@@ -70,6 +86,7 @@ type PregnancyFollowUp = {
   estudianteRegular?: string
   carrera?: string
   ciclo?: string
+  seccion?: string
   turno?: string
   controlPrenatal?: string
   observaciones?: string
@@ -83,6 +100,8 @@ type PregnancyDetails = {
   estudianteRegular?: string
   observaciones?: string
 }
+
+type ExcelSheetRow = Record<string, string>
 
 function UserDetail() {
   const { id } = useParams<{ id: string }>()
@@ -130,6 +149,7 @@ function UserDetail() {
     useState(false)
   const [isSavingPregnancy, setIsSavingPregnancy] = useState(false)
   const [isSavingAttendance, setIsSavingAttendance] = useState(false)
+  const [isExportingExcel, setIsExportingExcel] = useState(false)
   const [isSendingAttendanceEmail, setIsSendingAttendanceEmail] =
     useState(false)
   const [attendanceEmailSent, setAttendanceEmailSent] = useState<
@@ -153,7 +173,7 @@ function UserDetail() {
     DisabilityDetails & { hasDisability: string }
   >({
     hasDisability: 'No',
-    periodoRegistro: '',
+    periodoRegistro: DEFAULT_ACADEMIC_PERIOD,
     disabilityType: '',
     conadisCardNumber: '',
     observaciones: '',
@@ -162,25 +182,27 @@ function UserDetail() {
     PregnancyDetails & { isPregnant: string }
   >({
     isPregnant: 'No',
-    periodoRegistrado: '',
+    periodoRegistrado: DEFAULT_ACADEMIC_PERIOD,
     controlPrenatal: '',
     fechaProbableParto: '',
     estudianteRegular: '',
     observaciones: '',
   })
   const [disabilityFollowUpForm, setDisabilityFollowUpForm] = useState({
-    periodoSeguimiento: '',
+    periodoSeguimiento: DEFAULT_ACADEMIC_PERIOD,
     estudianteRegular: '',
     carrera: '',
     ciclo: '',
+    seccion: '',
     turno: '',
     observaciones: '',
   })
   const [pregnancyFollowUpForm, setPregnancyFollowUpForm] = useState({
-    periodoSeguimiento: '',
+    periodoSeguimiento: DEFAULT_ACADEMIC_PERIOD,
     estudianteRegular: '',
     carrera: '',
     ciclo: '',
+    seccion: '',
     turno: '',
     controlPrenatal: '',
     observaciones: '',
@@ -216,7 +238,10 @@ function UserDetail() {
 
     loadUser()
   }, [id])
-
+  const formatTimeWithoutSeconds = (time: string) => {
+    const normalized = String(time || '').trim()
+    return normalized.replace(/([0-9]{1,2}:[0-9]{2})(?::[0-9]{2})/g, '$1')
+  }
   useEffect(() => {
     if (!id) {
       setAttendances([])
@@ -242,11 +267,25 @@ function UserDetail() {
             resultado: att.resultado || '',
             programa: att.programa || '',
             ciclo: att.ciclo || '',
+            seccion: att.seccion || '',
             usuarioId: att.usuarioId || '',
             nombreCompleto: att.nombreCompleto || '',
+            edad: att.edad || '',
             dni: att.dni || '',
+            celular: att.celular || '',
             correoElectronico: att.correoElectronico || '',
             periodo: att.periodo || '',
+            followUps: Array.isArray(att.followUps)
+              ? att.followUps.map((followUp: any) => ({
+                  idSeguimiento: followUp.idSeguimiento || '',
+                  orden: followUp.idAtencion || att.orden,
+                  fechaSeguimiento: followUp.fechaSeguimiento || '',
+                  hora: followUp.hora || '',
+                  asistio: followUp.asistio || '',
+                  nivelCompromiso: followUp.nivelCompromiso || '',
+                  observaciones: followUp.observaciones || '',
+                }))
+              : [],
           })),
         )
       } catch (error) {
@@ -318,7 +357,7 @@ function UserDetail() {
     }
 
     const loadPregnancyDetails = async () => {
-      if (user.sexo?.toLowerCase().includes('masculino')) {
+      if (isMaleSex(user.sexo)) {
         setPregnancyDetails(null)
         return
       }
@@ -341,7 +380,7 @@ function UserDetail() {
     }
 
     const loadPregnancyFollowUps = async () => {
-      if (user.sexo?.toLowerCase().includes('masculino')) {
+      if (isMaleSex(user.sexo)) {
         setPregnancyFollowUps([])
         return
       }
@@ -370,17 +409,6 @@ function UserDetail() {
     loadPregnancyFollowUps()
   }, [id, user])
 
-  const renderDetailRow = (label: string, value: string) => (
-    <div className='rounded-2xl border border-outline-variant/30 bg-gradient-to-br from-surface-container-lowest to-surface-container-low p-5 hover:border-primary/20 hover:shadow-md transition-all'>
-      <p className='text-[9px] uppercase tracking-widest text-on-surface-variant/70 font-semibold'>
-        {label}
-      </p>
-      <p className='mt-3 text-base font-semibold text-on-surface'>
-        {value || '—'}
-      </p>
-    </div>
-  )
-
   const getStatusBadge = (status: string) => {
     const normalized = status.toLowerCase()
     if (normalized.includes('finalizado')) {
@@ -394,6 +422,17 @@ function UserDetail() {
     }
     return 'bg-surface-container-high text-on-surface-variant'
   }
+
+  const renderDetailRow = (label: string, value: string) => (
+    <div className='rounded-2xl border border-outline-variant/30 bg-gradient-to-br from-surface-container-lowest to-surface-container-low p-5 hover:border-primary/20 hover:shadow-md transition-all'>
+      <p className='text-[9px] uppercase tracking-widest text-on-surface-variant/70 font-semibold'>
+        {label}
+      </p>
+      <p className='mt-3 text-base font-semibold text-on-surface'>
+        {value || '—'}
+      </p>
+    </div>
+  )
 
   const normalizeYesNo = (value?: string) => {
     const normalized = String(value || '')
@@ -441,15 +480,411 @@ function UserDetail() {
     return digits
   }
 
-  const formatTimeWithoutSeconds = (time: string) => {
-    const normalized = String(time || '').trim()
-    return normalized.replace(/([0-9]{1,2}:[0-9]{2})(?::[0-9]{2})/g, '$1')
+  const normalizeExcelValue = (value?: string | null) =>
+    String(value || '').trim() || '—'
+
+  const getExcelColumnLetter = (columnNumber: number) => {
+    let value = columnNumber
+    let column = ''
+
+    while (value > 0) {
+      const remainder = (value - 1) % 26
+      column = String.fromCharCode(65 + remainder) + column
+      value = Math.floor((value - 1) / 26)
+    }
+
+    return column
+  }
+
+  const setWorksheetTable = (
+    worksheet: ExcelJS.Worksheet,
+    rows: ExcelSheetRow[],
+  ) => {
+    const normalizedRows =
+      rows.length > 0 ? rows : [{ Campo: 'Sin registros', Valor: '—' }]
+    const columns = Object.keys(normalizedRows[0]).map((key) => ({
+      header: key,
+      key,
+      width: Math.max(key.length + 2, 18),
+    }))
+
+    worksheet.columns = columns
+    worksheet.addRows(normalizedRows)
+    worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } }
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF673AB6' },
+    }
+    worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' }
+    worksheet.views = [{ state: 'frozen', ySplit: 1 }]
+    worksheet.autoFilter = {
+      from: 'A1',
+      to: `${getExcelColumnLetter(columns.length)}1`,
+    }
+
+    worksheet.columns.forEach((column) => {
+      if (!column) {
+        return
+      }
+
+      const key = String(column.header || '')
+      let maxLength = Math.max(key.length, 18)
+
+      worksheet.eachRow({ includeEmpty: true }, (row, rowNumber) => {
+        if (rowNumber === 1) {
+          return
+        }
+        const cellValue = row.getCell(column.number || 1).value
+        const text = String(cellValue || '').length
+        if (text > maxLength) {
+          maxLength = Math.min(text + 2, 45)
+        }
+      })
+
+      column.width = maxLength
+    })
+  }
+
+  const sanitizeExcelFileName = (value: string) =>
+    value
+      .trim()
+      .replace(/[\\/:*?"<>|]+/g, '-')
+      .replace(/\s+/g, ' ')
+      .slice(0, 80)
+
+  const applyAllBorders = (worksheet: ExcelJS.Worksheet) => {
+    worksheet.eachRow((row) => {
+      row.eachCell((cell) => {
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' },
+        }
+      })
+    })
+  }
+  const buildKeyValueRows = (entries: Array<[string, string | undefined]>) =>
+    entries.map(([field, value]) => ({
+      Campo: field,
+      Valor: normalizeExcelValue(value),
+    }))
+
+  const createGroupedFollowUpWorksheet = (
+    workbook: ExcelJS.Workbook,
+    sheetName: string,
+    baseHeaders: string[],
+    baseValues: string[],
+    subHeaders: string[],
+    followUps: Array<{
+      periodoSeguimiento?: string
+      estudianteRegular?: string
+      carrera?: string
+      ciclo?: string
+      seccion?: string
+      turno?: string
+      observaciones?: string
+    }>,
+  ) => {
+    const worksheet = workbook.addWorksheet(sheetName)
+
+    const followUpByPeriod = followUps.reduce<
+      Record<string, (typeof followUps)[number]>
+    >((accumulator, followUp) => {
+      const period = formatPeriodoInput(
+        String(followUp.periodoSeguimiento || ''),
+      )
+      if (!period) {
+        return accumulator
+      }
+
+      accumulator[period] = followUp
+      return accumulator
+    }, {})
+
+    const periods = Object.keys(followUpByPeriod).sort((left, right) =>
+      left.localeCompare(right, 'es'),
+    )
+
+    let columnIndex = 1
+    baseHeaders.forEach(() => {
+      worksheet.mergeCells(1, columnIndex, 2, columnIndex)
+      columnIndex += 1
+    })
+
+    periods.forEach((period) => {
+      const startColumn = columnIndex
+      const endColumn = columnIndex + subHeaders.length - 1
+      worksheet.mergeCells(1, startColumn, 1, endColumn)
+      worksheet.getCell(1, startColumn).value = period
+      subHeaders.forEach((subHeader, subIndex) => {
+        worksheet.getCell(2, startColumn + subIndex).value = subHeader
+      })
+      columnIndex = endColumn + 1
+    })
+
+    baseHeaders.forEach((header, index) => {
+      worksheet.getCell(1, index + 1).value = header
+    })
+
+    worksheet.getRow(1).eachCell((cell) => {
+      cell.font = { bold: true }
+      cell.alignment = {
+        horizontal: 'center',
+        vertical: 'middle',
+        wrapText: true,
+      }
+    })
+
+    worksheet.getRow(2).eachCell((cell) => {
+      cell.font = { bold: true }
+      cell.alignment = {
+        horizontal: 'center',
+        vertical: 'middle',
+        wrapText: true,
+      }
+    })
+
+    const periodFill = {
+      type: 'pattern' as const,
+      pattern: 'solid' as const,
+      fgColor: { argb: 'FFEEEEEE' },
+    }
+
+    for (
+      let periodColumn = baseHeaders.length + 1;
+      periodColumn <= columnIndex - 1;
+      periodColumn += 1
+    ) {
+      worksheet.getRow(1).getCell(periodColumn).fill = periodFill
+      worksheet.getRow(2).getCell(periodColumn).fill = periodFill
+    }
+
+    const rowValues = [...baseValues]
+    periods.forEach((period) => {
+      const followUp = followUpByPeriod[period]
+      rowValues.push(normalizeExcelValue(followUp.estudianteRegular))
+      rowValues.push(normalizeExcelValue(followUp.carrera))
+      rowValues.push(normalizeExcelValue(followUp.ciclo))
+      rowValues.push(normalizeExcelValue(followUp.turno))
+      rowValues.push(normalizeExcelValue(followUp.observaciones))
+    })
+
+    const dataRow = worksheet.addRow(rowValues)
+    dataRow.eachCell((cell) => {
+      cell.alignment = {
+        vertical: 'middle',
+        horizontal: 'left',
+        wrapText: true,
+      }
+    })
+
+    worksheet.columns.forEach((column) => {
+      if (!column) {
+        return
+      }
+
+      const headerText = String(column.header || '')
+      let maxLength = Math.max(headerText.length, 14)
+      worksheet.eachRow({ includeEmpty: true }, (row, rowNumber) => {
+        if (rowNumber > 2) {
+          const cellValue = row.getCell(column.number || 1).value
+          const cellLength = String(cellValue || '').length
+          if (cellLength > maxLength) {
+            maxLength = Math.min(cellLength + 2, 42)
+          }
+        }
+      })
+      column.width = maxLength
+    })
+
+    worksheet.views = [{ state: 'frozen', ySplit: 2 }]
+    applyAllBorders(worksheet)
+    return worksheet
+  }
+
+  const handleDownloadExcel = async () => {
+    if (!user) {
+      return
+    }
+
+    setIsExportingExcel(true)
+    try {
+      const workbook = new ExcelJS.Workbook()
+      workbook.creator = 'Copilot'
+      workbook.created = new Date()
+      workbook.modified = new Date()
+
+      setWorksheetTable(
+        workbook.addWorksheet('Resumen'),
+        buildKeyValueRows([
+          ['Nombre completo', user.nombreCompleto],
+          ['DNI', user.dni],
+          ['Edad', user.edad],
+          ['Sexo', user.sexo],
+          ['Correo electrónico', user.correoElectronico],
+          ['Teléfono', user.telefono],
+          ['Nacionalidad', user.nacionalidad],
+          ['Rol', user.rol],
+          ['Fecha última actualización', user.fechaUltimaActualizacion],
+        ]),
+      )
+
+      setWorksheetTable(
+        workbook.addWorksheet('Ficha general'),
+        buildKeyValueRows([
+          ['Vive con', user.viviendoCon],
+          ['Tipo de seguro', user.tipoSeguro],
+          ['Carrera', user.carrera],
+          ['Ciclo', user.ciclo],
+          ['Sección', user.seccion],
+          ['Área / Departamento', user.areaDepartamento],
+          ['Cargo', user.cargo],
+          ['Embarazo', user.isPregnant],
+          ['Discapacidad', user.hasDisability],
+        ]),
+      )
+
+      setWorksheetTable(
+        workbook.addWorksheet('Atenciones'),
+        attendances.map((attendance, index) => ({
+          Nro: String(index + 1),
+          Orden: attendance.orden,
+          Fecha: normalizeExcelValue(attendance.fechaAtencion),
+          Motivo: normalizeExcelValue(attendance.motivoAtencion),
+          Resultado: normalizeExcelValue(attendance.resultado),
+          Programa: normalizeExcelValue(attendance.programa),
+          Ciclo: normalizeExcelValue(attendance.ciclo),
+          Sección: normalizeExcelValue(attendance.seccion),
+          Medio: normalizeExcelValue(attendance.medioContacto),
+          Área: normalizeExcelValue(attendance.areaProblematica),
+          Observaciones: normalizeExcelValue(attendance.observaciones),
+        })),
+      )
+
+      if (disabilityDetails || disabilityFollowUps.length > 0) {
+        createGroupedFollowUpWorksheet(
+          workbook,
+          'Reporte discapacidad',
+          [
+            'PERIODO REGISTRO',
+            'FECHA REGISTRO',
+            'DNI',
+            'NOMBRES',
+            'DISCAPACIDAD',
+            'CARNET - CONADIS',
+            'OBSERVACIONES',
+            'CELULAR',
+            'CORREO',
+          ],
+          [
+            normalizeExcelValue(disabilityDetails?.periodoRegistro),
+            normalizeExcelValue(
+              disabilityFollowUps[0]?.fechaRegistro ||
+                user.fechaUltimaActualizacion,
+            ),
+            normalizeExcelValue(user.dni),
+            normalizeExcelValue(user.nombreCompleto),
+            normalizeExcelValue(disabilityDetails?.disabilityType),
+            normalizeExcelValue(disabilityDetails?.conadisCardNumber),
+            normalizeExcelValue(disabilityDetails?.observaciones),
+            normalizeExcelValue(user.telefono),
+            normalizeExcelValue(user.correoElectronico),
+          ],
+          ['Estudiante regular', 'Carrera', 'Ciclo', 'Turno', 'Observaciones'],
+          disabilityFollowUps,
+        )
+      }
+
+      if (!isMale && (pregnancyDetails || pregnancyFollowUps.length > 0)) {
+        setWorksheetTable(
+          workbook.addWorksheet('Gestante'),
+          buildKeyValueRows([
+            ['Periodo registrado', pregnancyDetails?.periodoRegistrado],
+            ['Control prenatal', pregnancyDetails?.controlPrenatal],
+            ['Fecha probable de parto', pregnancyDetails?.fechaProbableParto],
+            ['Estudiante regular', pregnancyDetails?.estudianteRegular],
+            ['Observaciones', pregnancyDetails?.observaciones],
+          ]),
+        )
+
+        createGroupedFollowUpWorksheet(
+          workbook,
+          'Gestantes',
+          [
+            'PERIODO REGISTRADO',
+            'FECHA REGISTRO',
+            'DNI',
+            'NOMBRES',
+            'EDAD',
+            'CONTROL PRENATAL',
+            'FECHA PROBABLE DE PARTO',
+            'CELULAR',
+            'CORREO',
+          ],
+          [
+            normalizeExcelValue(pregnancyDetails?.periodoRegistrado),
+            normalizeExcelValue(
+              pregnancyFollowUps[0]?.fechaRegistro ||
+                user.fechaUltimaActualizacion,
+            ),
+            normalizeExcelValue(user.dni),
+            normalizeExcelValue(user.nombreCompleto),
+            normalizeExcelValue(user.edad),
+            normalizeExcelValue(pregnancyDetails?.controlPrenatal),
+            normalizeExcelValue(pregnancyDetails?.fechaProbableParto),
+            normalizeExcelValue(user.telefono),
+            normalizeExcelValue(user.correoElectronico),
+          ],
+          ['Estudiante regular', 'Carrera', 'Ciclo', 'Turno', 'Observacion'],
+          pregnancyFollowUps,
+        )
+
+        setWorksheetTable(
+          workbook.addWorksheet('Seg. gestante'),
+          pregnancyFollowUps.map((item, index) => ({
+            Nro: String(index + 1),
+            Periodo: normalizeExcelValue(item.periodoSeguimiento),
+            'Estudiante regular': normalizeExcelValue(item.estudianteRegular),
+            Carrera: normalizeExcelValue(item.carrera),
+            Ciclo: normalizeExcelValue(item.ciclo),
+            Sección: normalizeExcelValue(item.seccion),
+            Turno: normalizeExcelValue(item.turno),
+            'Control prenatal': normalizeExcelValue(item.controlPrenatal),
+            Observaciones: normalizeExcelValue(item.observaciones),
+            'Fecha de registro': normalizeExcelValue(item.fechaRegistro),
+          })),
+        )
+      }
+
+      const buffer = await workbook.xlsx.writeBuffer()
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      })
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = `${sanitizeExcelFileName(user.nombreCompleto || 'paciente')}-detalle.xlsx`
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      URL.revokeObjectURL(url)
+
+      toast.success('Excel descargado correctamente')
+    } catch (error) {
+      console.error(error)
+      toast.error('No se pudo generar el Excel')
+    } finally {
+      setIsExportingExcel(false)
+    }
   }
 
   const handleOpenDisabilityModal = () => {
     setDisabilityForm({
       hasDisability: user?.hasDisability || 'No',
-      periodoRegistro: disabilityDetails?.periodoRegistro || '',
+      periodoRegistro:
+        disabilityDetails?.periodoRegistro || DEFAULT_ACADEMIC_PERIOD,
       disabilityType: disabilityDetails?.disabilityType || '',
       conadisCardNumber: disabilityDetails?.conadisCardNumber || '',
       observaciones: disabilityDetails?.observaciones || '',
@@ -460,7 +895,8 @@ function UserDetail() {
   const handleOpenPregnancyModal = () => {
     setPregnancyForm({
       isPregnant: user?.isPregnant || 'No',
-      periodoRegistrado: pregnancyDetails?.periodoRegistrado || '',
+      periodoRegistrado:
+        pregnancyDetails?.periodoRegistrado || DEFAULT_ACADEMIC_PERIOD,
       controlPrenatal: pregnancyDetails?.controlPrenatal || '',
       fechaProbableParto: pregnancyDetails?.fechaProbableParto || '',
       estudianteRegular: pregnancyDetails?.estudianteRegular || '',
@@ -477,6 +913,7 @@ function UserDetail() {
         estudianteRegular: followUp.estudianteRegular || '',
         carrera: followUp.carrera || user?.carrera || '',
         ciclo: followUp.ciclo || user?.ciclo || '',
+        seccion: followUp.seccion || user?.seccion || '',
         turno: followUp.turno || '',
         controlPrenatal: followUp.controlPrenatal || '',
         observaciones: followUp.observaciones || '',
@@ -484,10 +921,11 @@ function UserDetail() {
     } else {
       setEditingPregnancyFollowUp(null)
       setPregnancyFollowUpForm({
-        periodoSeguimiento: '',
+        periodoSeguimiento: DEFAULT_ACADEMIC_PERIOD,
         estudianteRegular: '',
         carrera: user?.carrera || '',
         ciclo: user?.ciclo || '',
+        seccion: user?.seccion || '',
         turno: '',
         controlPrenatal: '',
         observaciones: '',
@@ -505,16 +943,18 @@ function UserDetail() {
         estudianteRegular: followUp.estudianteRegular || '',
         carrera: followUp.carrera || user?.carrera || '',
         ciclo: followUp.ciclo || user?.ciclo || '',
+        seccion: followUp.seccion || user?.seccion || '',
         turno: followUp.turno || '',
         observaciones: followUp.observaciones || '',
       })
     } else {
       setEditingDisabilityFollowUp(null)
       setDisabilityFollowUpForm({
-        periodoSeguimiento: '',
+        periodoSeguimiento: DEFAULT_ACADEMIC_PERIOD,
         estudianteRegular: '',
         carrera: user?.carrera || '',
         ciclo: '',
+        seccion: user?.seccion || '',
         turno: '',
         observaciones: '',
       })
@@ -542,7 +982,9 @@ function UserDetail() {
         String(disabilityForm.periodoRegistro || '').trim(),
       )
     ) {
-      toast.error('Periodo de registro inválido. Use el formato 2026 - I')
+      toast.error(
+        `Periodo de registro inválido. Use el formato ${DEFAULT_ACADEMIC_PERIOD}`,
+      )
       return
     }
 
@@ -597,7 +1039,7 @@ function UserDetail() {
         disabilityFollowUpForm.periodoSeguimiento.trim(),
       )
     ) {
-      toast.error('Periodo inválido. Use el formato 2026 - I')
+      toast.error(`Periodo inválido. Use el formato ${DEFAULT_ACADEMIC_PERIOD}`)
       return
     }
 
@@ -617,6 +1059,7 @@ function UserDetail() {
         estudianteRegular: disabilityFollowUpForm.estudianteRegular,
         carrera: disabilityFollowUpForm.carrera,
         ciclo: disabilityFollowUpForm.ciclo,
+        seccion: disabilityFollowUpForm.seccion,
         turno: disabilityFollowUpForm.turno,
         observaciones: disabilityFollowUpForm.observaciones,
         dni: user.dni,
@@ -629,6 +1072,7 @@ function UserDetail() {
         estudianteRegular: disabilityFollowUpForm.estudianteRegular,
         carrera: disabilityFollowUpForm.carrera,
         ciclo: disabilityFollowUpForm.ciclo,
+        seccion: disabilityFollowUpForm.seccion,
         turno: disabilityFollowUpForm.turno,
         observaciones: disabilityFollowUpForm.observaciones,
         fechaRegistro: editingDisabilityFollowUp?.fechaRegistro || now,
@@ -677,7 +1121,7 @@ function UserDetail() {
         pregnancyFollowUpForm.periodoSeguimiento.trim(),
       )
     ) {
-      toast.error('Periodo inválido. Use el formato 2026 - I')
+      toast.error(`Periodo inválido. Use el formato ${DEFAULT_ACADEMIC_PERIOD}`)
       return
     }
 
@@ -697,6 +1141,7 @@ function UserDetail() {
         estudianteRegular: pregnancyFollowUpForm.estudianteRegular,
         carrera: pregnancyFollowUpForm.carrera,
         ciclo: pregnancyFollowUpForm.ciclo,
+        seccion: pregnancyFollowUpForm.seccion,
         turno: pregnancyFollowUpForm.turno,
         controlPrenatal: pregnancyFollowUpForm.controlPrenatal,
         observaciones: pregnancyFollowUpForm.observaciones,
@@ -710,6 +1155,7 @@ function UserDetail() {
         estudianteRegular: pregnancyFollowUpForm.estudianteRegular,
         carrera: pregnancyFollowUpForm.carrera,
         ciclo: pregnancyFollowUpForm.ciclo,
+        seccion: pregnancyFollowUpForm.seccion,
         turno: pregnancyFollowUpForm.turno,
         controlPrenatal: pregnancyFollowUpForm.controlPrenatal,
         observaciones: pregnancyFollowUpForm.observaciones,
@@ -750,6 +1196,25 @@ function UserDetail() {
     }
 
     const isPregnant = normalizeYesNo(pregnancyForm.isPregnant)
+
+    if (isPregnant && !pregnancyForm.periodoRegistrado?.trim()) {
+      toast.error('Indique el periodo de registro antes de guardar')
+      return
+    }
+
+    if (
+      isPregnant &&
+      pregnancyForm.periodoRegistrado?.trim() &&
+      !/^[0-9]{4}\s*-\s*(I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII)$/i.test(
+        String(pregnancyForm.periodoRegistrado || '').trim(),
+      )
+    ) {
+      toast.error(
+        `Periodo de registro inválido. Use el formato ${DEFAULT_ACADEMIC_PERIOD}`,
+      )
+      return
+    }
+
     if (
       isPregnant &&
       !pregnancyForm.controlPrenatal?.trim() &&
@@ -810,15 +1275,14 @@ function UserDetail() {
     setAttendanceForm({
       orden: attendance.orden,
       observaciones: attendance.observaciones || '',
-      resultado: attendance.resultado || 'Finalizado',
+      resultado: attendance.resultado || '',
       motivoAtencion: attendance.motivoAtencion || '',
-      nombreCompleto: attendance.nombreCompleto || user?.nombreCompleto || '',
-      dni: attendance.dni || user?.dni || '',
-      programa: attendance.programa || user?.carrera || '',
-      ciclo: attendance.ciclo || user?.ciclo || '',
-      seccion: user?.seccion || '',
-      correoElectronico:
-        attendance.correoElectronico || user?.correoElectronico || '',
+      nombreCompleto: attendance.nombreCompleto || '',
+      dni: attendance.dni || '',
+      programa: attendance.programa || '',
+      ciclo: attendance.ciclo || '',
+      seccion: attendance.seccion || '',
+      correoElectronico: attendance.correoElectronico || '',
       fechaAtencion: attendance.fechaAtencion || '',
       areaProblematica: attendance.areaProblematica || '',
     })
@@ -837,6 +1301,19 @@ function UserDetail() {
       return
     }
     setShowReceiptModal(true)
+  }
+
+  const handleGoToConsultas = (attendance: AttendanceSummary) => {
+    const motivo = String(
+      attendance.motivoAtencion || attendance.areaProblematica || '',
+    ).trim()
+
+    if (!motivo) {
+      navigate('/consultas')
+      return
+    }
+
+    navigate(`/consultas?motivo=${encodeURIComponent(motivo)}`)
   }
 
   const handleSaveAttendance = async () => {
@@ -1057,7 +1534,7 @@ function UserDetail() {
 
   const isStudent = user?.rol?.toLowerCase().includes('estudiante')
   const isAdministrative = user?.rol?.toLowerCase().includes('administr')
-  const isMale = user?.sexo?.toLowerCase().includes('masculino')
+  const isMale = isMaleSex(user?.sexo)
   const hasDisability = normalizeYesNo(user?.hasDisability)
   const isPregnant = !isMale && normalizeYesNo(user?.isPregnant)
   const showCombinedTabs = hasDisability && isPregnant
@@ -1188,6 +1665,9 @@ function UserDetail() {
                       Ciclo: {item.ciclo || '—'}
                     </span>
                     <span className='rounded-full bg-surface-container-high px-3 py-1 text-xs text-on-surface'>
+                      Sección: {item.seccion || '—'}
+                    </span>
+                    <span className='rounded-full bg-surface-container-high px-3 py-1 text-xs text-on-surface'>
                       Turno: {item.turno || '—'}
                     </span>
                   </div>
@@ -1315,6 +1795,9 @@ function UserDetail() {
                     </span>
                     <span className='rounded-full bg-surface-container-high px-3 py-1 text-xs text-on-surface'>
                       Ciclo: {item.ciclo || '—'}
+                    </span>
+                    <span className='rounded-full bg-surface-container-high px-3 py-1 text-xs text-on-surface'>
+                      Sección: {item.seccion || '—'}
                     </span>
                     <span className='rounded-full bg-surface-container-high px-3 py-1 text-xs text-on-surface'>
                       Turno: {item.turno || '—'}
@@ -1456,17 +1939,26 @@ function UserDetail() {
               <div className='flex flex-wrap gap-3'>
                 <button
                   type='button'
+                  onClick={handleDownloadExcel}
+                  disabled={isExportingExcel}
+                  className='inline-flex items-center gap-2 rounded-full border border-outline-variant/30 bg-white px-5 py-3 text-sm font-semibold text-on-surface-variant shadow-sm transition hover:border-primary/30 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50'
+                >
+                  <span className='material-symbols-outlined text-lg'>
+                    table_view
+                  </span>
+                  {isExportingExcel ? 'Generando Excel...' : 'Descargar Excel'}
+                </button>
+                <button
+                  type='button'
                   onClick={() =>
-                    navigate(
-                      `/registration?patientId=${encodeURIComponent(id || '')}`,
-                    )
+                    navigate(`/user/${encodeURIComponent(id || '')}/edit`)
                   }
                   className='inline-flex items-center gap-2 rounded-full border border-outline-variant/30 bg-white px-5 py-3 text-sm font-semibold text-on-surface-variant shadow-sm transition hover:border-primary/30 hover:text-primary'
                 >
                   <span className='material-symbols-outlined text-lg'>
                     edit
                   </span>
-                  Editar registro
+                  Editar usuario
                 </button>
               </div>
             </div>
@@ -1743,8 +2235,118 @@ function UserDetail() {
                                   receipt_long
                                 </span>
                               </button>
+                              <button
+                                type='button'
+                                onClick={() => handleGoToConsultas(attendance)}
+                                className='inline-flex h-10 w-10 items-center justify-center rounded-full border border-outline-variant/50 bg-white text-on-surface hover:bg-surface-container-high transition'
+                                aria-label='Ver en consultas'
+                              >
+                                <span className='material-symbols-outlined text-base'>
+                                  search
+                                </span>
+                              </button>
                             </div>
                           </div>
+
+                          {(() => {
+                            const followUps = attendance.followUps || []
+
+                            if (followUps.length === 0) {
+                              return (
+                                <div className='mt-5 rounded-2xl border border-dashed border-outline-variant/20 bg-surface-container-low p-4'>
+                                  <p className='text-xs font-bold uppercase tracking-[0.18em] text-on-surface-variant'>
+                                    Seguimiento de la atención
+                                  </p>
+                                  <p className='mt-2 text-sm text-on-surface-variant'>
+                                    Aún no hay seguimientos registrados para
+                                    esta atención.
+                                  </p>
+                                </div>
+                              )
+                            }
+
+                            return (
+                              <div className='mt-5 rounded-2xl border border-outline-variant/20 bg-surface-container-low p-4'>
+                                <div className='flex items-center justify-between gap-3'>
+                                  <div>
+                                    <p className='text-xs font-bold uppercase tracking-[0.18em] text-on-surface-variant'>
+                                      Seguimiento de la atención
+                                    </p>
+                                    <p className='mt-1 text-sm text-on-surface-variant'>
+                                      {followUps.length} seguimiento(s)
+                                      registrado(s)
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className='mt-4 space-y-3'>
+                                  {followUps.map((followUp, index) => {
+                                    const asistioLabel =
+                                      followUp.asistio &&
+                                      followUp.asistio.trim()
+                                        ? followUp.asistio
+                                        : 'Pendiente'
+
+                                    const commitmentLabel =
+                                      followUp.nivelCompromiso || 'Sin nivel'
+
+                                    return (
+                                      <div
+                                        key={
+                                          followUp.idSeguimiento ||
+                                          `${attendance.orden}-${index}`
+                                        }
+                                        className='rounded-2xl border border-outline-variant/20 bg-white p-4 shadow-sm'
+                                      >
+                                        <div className='flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between'>
+                                          <div>
+                                            <p className='text-xs font-bold uppercase tracking-[0.22em] text-on-surface-variant'>
+                                              Seguimiento {index + 1}
+                                            </p>
+
+                                            <p className='mt-2 text-sm font-semibold text-on-surface'>
+                                              {followUp.fechaSeguimiento ||
+                                                'Sin fecha'}
+                                              {followUp.hora
+                                                ? ` · ${formatTimeWithoutSeconds(followUp.hora)}`
+                                                : ''}
+                                            </p>
+                                          </div>
+
+                                          <div className='flex flex-wrap gap-2'>
+                                            <span className='inline-flex items-center gap-2 rounded-full bg-secondary/10 px-3 py-1 text-xs font-semibold text-secondary'>
+                                              <span className='material-symbols-outlined text-[14px]'>
+                                                event_available
+                                              </span>
+                                              Asistió: {asistioLabel}
+                                            </span>
+
+                                            <span className='inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary'>
+                                              <span className='material-symbols-outlined text-[14px]'>
+                                                trending_up
+                                              </span>
+                                              Compromiso: {commitmentLabel}
+                                            </span>
+                                          </div>
+                                        </div>
+
+                                        <div className='mt-3 rounded-xl bg-surface-container-low px-3 py-2'>
+                                          <p className='text-[11px] font-semibold uppercase tracking-[0.2em] text-on-surface-variant'>
+                                            Observaciones
+                                          </p>
+
+                                          <p className='mt-1 text-sm leading-relaxed text-on-surface'>
+                                            {followUp.observaciones ||
+                                              'Sin observaciones'}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            )
+                          })()}
                         </div>
                       ))}
                     </div>
@@ -2213,7 +2815,7 @@ function UserDetail() {
                               }
                               disabled={isSavingDisability}
                               className='mt-2 w-full rounded-xl border border-outline-variant/50 bg-surface px-4 py-3 text-on-surface disabled:cursor-not-allowed disabled:opacity-50'
-                              placeholder='2026 - I'
+                              placeholder={DEFAULT_ACADEMIC_PERIOD}
                             />
                           </div>
                           <div>
@@ -2336,6 +2938,27 @@ function UserDetail() {
 
                       {normalizeYesNo(pregnancyForm.isPregnant) && (
                         <>
+                          <div>
+                            <label className='text-sm font-semibold text-on-surface'>
+                              Periodo de registro
+                            </label>
+                            <input
+                              type='text'
+                              value={pregnancyForm.periodoRegistrado}
+                              onChange={(event) =>
+                                setPregnancyForm((prev) => ({
+                                  ...prev,
+                                  periodoRegistrado: formatPeriodoInput(
+                                    event.target.value,
+                                  ),
+                                }))
+                              }
+                              disabled={isSavingPregnancy}
+                              className='mt-2 w-full rounded-xl border border-outline-variant/50 bg-surface px-4 py-3 text-on-surface disabled:cursor-not-allowed disabled:opacity-50'
+                              placeholder={DEFAULT_ACADEMIC_PERIOD}
+                            />
+                          </div>
+
                           <div>
                             <label className='text-sm font-semibold text-on-surface'>
                               Control prenatal
@@ -2469,7 +3092,7 @@ function UserDetail() {
                           }
                           disabled={isSavingDisabilityFollowUp}
                           className='mt-2 w-full rounded-xl border border-outline-variant/50 bg-surface px-4 py-3 text-on-surface disabled:cursor-not-allowed disabled:opacity-50'
-                          placeholder='2026 - I'
+                          placeholder={DEFAULT_ACADEMIC_PERIOD}
                         />
                       </div>
                       <div>
@@ -2518,8 +3141,7 @@ function UserDetail() {
                         <label className='text-sm font-semibold text-on-surface'>
                           Ciclo
                         </label>
-                        <input
-                          type='text'
+                        <select
                           value={disabilityFollowUpForm.ciclo}
                           onChange={(event) =>
                             setDisabilityFollowUpForm((prev) => ({
@@ -2529,7 +3151,37 @@ function UserDetail() {
                           }
                           disabled={isSavingDisabilityFollowUp}
                           className='mt-2 w-full rounded-xl border border-outline-variant/50 bg-surface px-4 py-3 text-on-surface disabled:cursor-not-allowed disabled:opacity-50'
-                        />
+                        >
+                          <option value=''>Seleccionar...</option>
+                          <option value='Primer Ciclo'>Primer Ciclo</option>
+                          <option value='Segundo Ciclo'>Segundo Ciclo</option>
+                          <option value='Tercer Ciclo'>Tercer Ciclo</option>
+                          <option value='Cuarto Ciclo'>Cuarto Ciclo</option>
+                          <option value='Quinto Ciclo'>Quinto Ciclo</option>
+                          <option value='Sexto Ciclo'>Sexto Ciclo</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className='text-sm font-semibold text-on-surface'>
+                          Sección
+                        </label>
+                        <select
+                          value={disabilityFollowUpForm.seccion}
+                          onChange={(event) =>
+                            setDisabilityFollowUpForm((prev) => ({
+                              ...prev,
+                              seccion: event.target.value,
+                            }))
+                          }
+                          disabled={isSavingDisabilityFollowUp}
+                          className='mt-2 w-full rounded-xl border border-outline-variant/50 bg-surface px-4 py-3 text-on-surface disabled:cursor-not-allowed disabled:opacity-50'
+                        >
+                          <option value=''>Seleccionar...</option>
+                          <option value='A'>A</option>
+                          <option value='B'>B</option>
+                          <option value='C'>C</option>
+                          <option value='D'>D</option>
+                        </select>
                       </div>
                       <div>
                         <label className='text-sm font-semibold text-on-surface'>
@@ -2652,7 +3304,7 @@ function UserDetail() {
                           }
                           disabled={isSavingPregnancyFollowUp}
                           className='mt-2 w-full rounded-xl border border-outline-variant/50 bg-surface px-4 py-3 text-on-surface disabled:cursor-not-allowed disabled:opacity-50'
-                          placeholder='2026 - I'
+                          placeholder={DEFAULT_ACADEMIC_PERIOD}
                         />
                       </div>
                       <div>
@@ -2703,8 +3355,7 @@ function UserDetail() {
                         <label className='text-sm font-semibold text-on-surface'>
                           Ciclo
                         </label>
-                        <input
-                          type='text'
+                        <select
                           value={pregnancyFollowUpForm.ciclo}
                           onChange={(event) =>
                             setPregnancyFollowUpForm((prev) => ({
@@ -2714,8 +3365,15 @@ function UserDetail() {
                           }
                           disabled={isSavingPregnancyFollowUp}
                           className='mt-2 w-full rounded-xl border border-outline-variant/50 bg-surface px-4 py-3 text-on-surface disabled:cursor-not-allowed disabled:opacity-50'
-                          placeholder='Ciclo'
-                        />
+                        >
+                          <option value=''>Seleccione</option>
+                          <option value='Primer Ciclo'>Primer Ciclo</option>
+                          <option value='Segundo Ciclo'>Segundo Ciclo</option>
+                          <option value='Tercer Ciclo'>Tercer Ciclo</option>
+                          <option value='Cuarto Ciclo'>Cuarto Ciclo</option>
+                          <option value='Quinto Ciclo'>Quinto Ciclo</option>
+                          <option value='Sexto Ciclo'>Sexto Ciclo</option>
+                        </select>
                       </div>
                       <div>
                         <label className='text-sm font-semibold text-on-surface'>
@@ -2756,6 +3414,28 @@ function UserDetail() {
                           <option value=''>Seleccione</option>
                           <option value='Sí'>Sí</option>
                           <option value='No'>No</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className='text-sm font-semibold text-on-surface'>
+                          Sección
+                        </label>
+                        <select
+                          value={pregnancyFollowUpForm.seccion}
+                          onChange={(event) =>
+                            setPregnancyFollowUpForm((prev) => ({
+                              ...prev,
+                              seccion: event.target.value,
+                            }))
+                          }
+                          disabled={isSavingPregnancyFollowUp}
+                          className='mt-2 w-full rounded-xl border border-outline-variant/50 bg-surface px-4 py-3 text-on-surface disabled:cursor-not-allowed disabled:opacity-50'
+                        >
+                          <option value=''>Seleccione</option>
+                          <option value='A'>A</option>
+                          <option value='B'>B</option>
+                          <option value='C'>C</option>
+                          <option value='D'>D</option>
                         </select>
                       </div>
                     </div>

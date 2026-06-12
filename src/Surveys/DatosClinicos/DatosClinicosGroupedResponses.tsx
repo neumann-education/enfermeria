@@ -21,6 +21,8 @@ function DatosClinicosGroupedResponses({
   const nombresApellidos = responses
     .map((r) => r.nombresApellidos)
     .filter(Boolean)
+  const correos = responses.map((r) => r.correoElectronico).filter(Boolean)
+  console.log('Correos:', correos)
   const fechasNacimiento = responses
     .map((r) => r.fechaNacimiento)
     .filter(Boolean)
@@ -103,6 +105,7 @@ function DatosClinicosGroupedResponses({
         Información del Programa
       </h1>
       <div className='space-y-6'>
+        {renderTextField('Correo Electrónico', correos)}
         {renderTextField('Programa', programas)}
         {renderMultipleField('Ciclo', ciclos)}
         {renderMultipleField('Sección', secciones)}

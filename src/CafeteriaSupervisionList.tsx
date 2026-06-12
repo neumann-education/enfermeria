@@ -6,6 +6,7 @@ type CafeteriaSupervisionListProps = {
   onCreate: () => void
   onEdit: (record: CafeteriaSupervisionRecord) => void
   onView?: (record: CafeteriaSupervisionRecord) => void
+  onDownload?: (record: CafeteriaSupervisionRecord) => void
   onDelete: (id: string) => void
 }
 
@@ -14,6 +15,7 @@ function CafeteriaSupervisionList({
   isLoading = false,
   onCreate,
   onView,
+  onDownload,
   onDelete,
 }: CafeteriaSupervisionListProps) {
   return (
@@ -82,8 +84,7 @@ function CafeteriaSupervisionList({
                     record.tiempoServicio,
                     record.calidadPrecio,
                     record.preciosCompetitivos,
-                    record.productosLocales,
-                    record.reciclaResiduos,
+
                     record.estadoEquipamiento,
                   ].filter(Boolean).length
 
@@ -126,16 +127,17 @@ function CafeteriaSupervisionList({
                             visibility
                           </span>
                         </button>
-                        {/* <button
+                        <button
                           type='button'
-                          onClick={() => onEdit(record)}
-                          title='Editar supervisión'
+                          onClick={() => onDownload && onDownload(record)}
+                          title='Descargar respuestas'
                           className='inline-flex items-center justify-center w-10 h-10 rounded-lg border border-primary text-primary hover:bg-primary/10 transition'
                         >
                           <span className='material-symbols-outlined text-base'>
-                            edit
+                            download
                           </span>
-                        </button> */}
+                        </button>
+
                         <button
                           type='button'
                           onClick={() => onDelete(record.id)}

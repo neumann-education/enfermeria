@@ -3,7 +3,7 @@ function PercentageBarChart({
   total,
   title,
 }: {
-  data: { label: string; count: number }[]
+  data: { label: string; count?: number; value?: number }[]
   total: number
   title?: string
 }) {
@@ -23,7 +23,8 @@ function PercentageBarChart({
 
       <div className='flex h-8 w-full overflow-hidden rounded-full bg-surface-container-low'>
         {data.map((item, idx) => {
-          const percentage = total > 0 ? (item.count / total) * 100 : 0
+          const count = item.count ?? item.value ?? 0
+          const percentage = total > 0 ? (count / total) * 100 : 0
           return (
             <div
               key={idx}
@@ -38,8 +39,8 @@ function PercentageBarChart({
       {/* Leyenda */}
       <div className='grid grid-cols-2 md:grid-cols-3 gap-3'>
         {data.map((item, idx) => {
-          const percentage =
-            total > 0 ? ((item.count / total) * 100).toFixed(1) : 0
+          const count = item.count ?? item.value ?? 0
+          const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : 0
           return (
             <div key={idx} className='flex items-center gap-2 text-sm'>
               <div
@@ -47,7 +48,7 @@ function PercentageBarChart({
               />
               <span className='font-medium text-on-surface'>{item.label}:</span>
               <span className='text-on-surface-variant'>
-                {item.count} ({percentage}%)
+                {count} ({percentage}%)
               </span>
             </div>
           )

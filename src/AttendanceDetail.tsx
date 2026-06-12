@@ -7,6 +7,7 @@ import toast from 'react-hot-toast'
 type AttendanceDetailData = {
   orden: string
   fechaAtencion: string
+  horaSalida: string
   usuarioId: string
   nombreCompleto: string
   edad: string
@@ -15,6 +16,7 @@ type AttendanceDetailData = {
   correoElectronico: string
   programa: string
   ciclo: string
+  seccion: string
   periodo: string
   sexo: string
   motivoAtencion: string
@@ -31,6 +33,31 @@ function AttendanceDetail() {
     null,
   )
   const [isLoading, setIsLoading] = useState(true)
+  const [horaSalida, setHoraSalida] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+
+  const normalizeTimeValue = (value: string) => {
+    const normalized = String(value || '').trim()
+    if (!normalized) {
+      return ''
+    }
+
+    const directMatch = normalized.match(
+      /^([0-9]{1,2}:[0-9]{2})(?::[0-9]{2})?$/,
+    )
+    if (directMatch) {
+      return directMatch[1].padStart(5, '0')
+    }
+
+    const embeddedMatch = normalized.match(
+      /(?:,|\s)([0-9]{1,2}:[0-9]{2})(?::[0-9]{2})?$/,
+    )
+    if (embeddedMatch) {
+      return embeddedMatch[1].padStart(5, '0')
+    }
+
+    return ''
+  }
 
   useEffect(() => {
     const loadData = async () => {
@@ -42,7 +69,14 @@ function AttendanceDetail() {
           toast.error('Atención no encontrada')
           return
         }
-        setAttendance(data)
+        const normalizedHoraSalida = normalizeTimeValue(
+          data.horaSalida || data.fechaAtencion || '',
+        )
+        setAttendance({
+          ...data,
+          horaSalida: normalizedHoraSalida,
+        })
+        setHoraSalida(normalizedHoraSalida)
       } catch (error) {
         console.error(error)
         toast.error('No se pudo cargar la atención')
@@ -53,6 +87,40 @@ function AttendanceDetail() {
 
     loadData()
   }, [order])
+
+  const handleSaveHoraSalida = async () => {
+    if (!attendance) {
+      return
+    }
+
+    if (!horaSalida.trim()) {
+      toast.error('Indique la hora de salida')
+      return
+    }
+
+    setIsSaving(true)
+    try {
+      await consultaService.updateAttendance({
+        orden: attendance.orden,
+        horaSalida: normalizeTimeValue(horaSalida),
+      })
+
+      setAttendance((prev) =>
+        prev
+          ? {
+              ...prev,
+              horaSalida: normalizeTimeValue(horaSalida),
+            }
+          : prev,
+      )
+      toast.success('Hora de salida actualizada correctamente')
+    } catch (error) {
+      console.error(error)
+      toast.error('No se pudo actualizar la hora de salida')
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   const renderDetailRow = (label: string, value: string) => (
     <div className='rounded-2xl border border-outline-variant/40 bg-surface-container-low p-4'>
@@ -102,6 +170,12 @@ function AttendanceDetail() {
                   </span>
                   <span>Fecha: {attendance.fechaAtencion}</span>
                 </div>
+                <div className='flex items-center gap-1.5'>
+                  <span className='material-symbols-outlined text-base'>
+                    schedule
+                  </span>
+                  <span>Hora de salida: {attendance.horaSalida || '—'}</span>
+                </div>
               </div>
             </div>
             <div className='flex gap-3'>
@@ -129,10 +203,12 @@ function AttendanceDetail() {
                   {renderDetailRow('DNI', attendance.dni)}
                   {renderDetailRow('Edad', attendance.edad)}
                   {renderDetailRow('Sexo', attendance.sexo || '')}
+                  {renderDetailRow('Hora de salida', attendance.horaSalida)}
                   {renderDetailRow('Teléfono', attendance.celular)}
                   {renderDetailRow('Email', attendance.correoElectronico)}
                   {renderDetailRow('Programa', attendance.programa)}
                   {renderDetailRow('Ciclo', attendance.ciclo)}
+                  {renderDetailRow('Sección', attendance.seccion || '')}
                 </div>
               </div>
             </div>
@@ -159,6 +235,10 @@ function AttendanceDetail() {
                 <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                   {renderDetailRow('Periodo', attendance.periodo)}
                   {renderDetailRow(
+                    'Hora de salida',
+                    normalizeTimeValue(attendance.horaSalida) || '—',
+                  )}
+                  {renderDetailRow(
                     'Área problemática',
                     attendance.areaProblematica,
                   )}
@@ -169,6 +249,31 @@ function AttendanceDetail() {
                   {renderDetailRow('Resultado', attendance.resultado)}
                 </div>
                 <div className='mt-6'>
+                  <div className='rounded-2xl border border-outline-variant/30 bg-surface-container-low p-4'>
+                    <label className='text-sm font-bold text-on-surface'>
+                      Hora de salida
+                    </label>
+                    <div className='mt-3 flex flex-col gap-3 sm:flex-row sm:items-center'>
+                      <input
+                        type='time'
+                        value={horaSalida}
+                        onChange={(event) => setHoraSalida(event.target.value)}
+                        disabled={isSaving}
+                        className='w-full rounded-xl border border-outline-variant/50 bg-white px-4 py-3 text-on-surface disabled:cursor-not-allowed disabled:opacity-50 sm:max-w-xs'
+                      />
+                      <button
+                        type='button'
+                        onClick={handleSaveHoraSalida}
+                        disabled={isSaving}
+                        className='rounded-full bg-primary px-5 py-3 text-sm font-semibold text-white hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50'
+                      >
+                        {isSaving ? 'Guardando...' : 'Guardar hora'}
+                      </button>
+                    </div>
+                    <p className='mt-2 text-xs text-on-surface-variant'>
+                      Se carga por defecto con la hora de registro.
+                    </p>
+                  </div>
                   <h4 className='text-sm font-bold text-on-surface mb-2'>
                     Observaciones
                   </h4>

@@ -181,8 +181,8 @@ function UserRegistrationForm({
                   className='w-full px-4 py-3 bg-surface-container-low border-none rounded-xl focus:ring-2 focus:ring-primary/20 transition-all text-on-surface appearance-none'
                 >
                   <option>Seleccionar...</option>
-                  <option>Masculino</option>
-                  <option>Femenino</option>
+                  <option value='M'>Masculino</option>
+                  <option value='F'>Femenino</option>
                 </select>
               </div>
             </div>

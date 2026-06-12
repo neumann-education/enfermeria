@@ -48,24 +48,6 @@ function SurveysPage() {
               Accede a los distintos tipos de encuestas, visualiza su estado y
               administra las respuestas de los estudiantes desde un solo lugar.
             </p>
-            <div className='mt-8 grid gap-4 sm:grid-cols-2'>
-              <div className='rounded-3xl bg-white/90 border border-outline-variant/20 p-5 shadow-sm'>
-                <p className='text-sm font-semibold text-on-surface-variant uppercase tracking-[0.24em]'>
-                  Encuestas disponibles
-                </p>
-                <p className='mt-3 text-3xl font-bold text-primary'>
-                  {surveyTypes.length}
-                </p>
-              </div>
-              <div className='rounded-3xl bg-white/90 border border-outline-variant/20 p-5 shadow-sm'>
-                <p className='text-sm font-semibold text-on-surface-variant uppercase tracking-[0.24em]'>
-                  Acceso rápido
-                </p>
-                <p className='mt-3 text-3xl font-bold text-secondary'>
-                  {surveyTypes.length}
-                </p>
-              </div>
-            </div>
           </div>
           <div className='rounded-[32px] border border-outline-variant/20 bg-white/95 p-6 shadow-sm'>
             <div className='flex items-center gap-3'>

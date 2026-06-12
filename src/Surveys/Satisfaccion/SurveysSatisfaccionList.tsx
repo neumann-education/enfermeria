@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router'
 import Layout from '../../Layout'
+import { ENFERMERIA_LINK } from '../DatosClinicos/SurveysDatosClinicosList'
+import CopyButton from '../../components/CopyButton'
 import toast from 'react-hot-toast'
 import {
   SurveyConfig,
@@ -9,11 +11,12 @@ import {
   updateSurveyConfigById,
   createSurveyConfig,
 } from '../../services/surveyService'
+import { DEFAULT_ACADEMIC_PERIOD } from '../../constants/academicPeriod'
 
 function SurveysSatisfaccionList() {
   const [configs, setConfigs] = useState<SurveyConfig[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [newPeriod, setNewPeriod] = useState('')
+  const [newPeriod, setNewPeriod] = useState(DEFAULT_ACADEMIC_PERIOD)
   const [periodError, setPeriodError] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [pendingToggleConfig, setPendingToggleConfig] =
@@ -120,7 +123,7 @@ function SurveysSatisfaccionList() {
       })
       toast.success('Encuesta creada')
       await loadConfigs()
-      setNewPeriod('')
+      setNewPeriod(DEFAULT_ACADEMIC_PERIOD)
       setShowModal(false)
       return savedConfig
     } catch (err: any) {
@@ -190,6 +193,7 @@ function SurveysSatisfaccionList() {
               <button
                 onClick={() => {
                   setShowModal(true)
+                  setNewPeriod(DEFAULT_ACADEMIC_PERIOD)
                   setPeriodError('')
                 }}
                 className='inline-flex items-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-primary/90 transition'
@@ -239,7 +243,7 @@ function SurveysSatisfaccionList() {
                   </div>
                   <input
                     type='text'
-                    placeholder='Período (ej: 2026 - I)'
+                    placeholder={DEFAULT_ACADEMIC_PERIOD}
                     value={newPeriod}
                     onChange={(e) => {
                       const formatted = formatPeriodoInput(e.target.value)
@@ -398,14 +402,19 @@ function SurveysSatisfaccionList() {
                         {config.period}
                       </td>
                       <td className='px-4 py-4'>
-                        <a
-                          href={config.link}
-                          className='text-primary hover:underline'
-                          target='_blank'
-                          rel='noreferrer'
-                        >
-                          {config.link}
-                        </a>
+                        <div className='flex items-center gap-3'>
+                          <a
+                            href={`${ENFERMERIA_LINK}${config.link}`}
+                            className='text-primary hover:underline truncate'
+                            target='_blank'
+                            rel='noreferrer'
+                          >
+                            {`${ENFERMERIA_LINK}${config.link}`}
+                          </a>
+                          <CopyButton
+                            text={`${ENFERMERIA_LINK}${config.link}`}
+                          />
+                        </div>
                       </td>
                       <td className='px-4 py-4'>
                         <button

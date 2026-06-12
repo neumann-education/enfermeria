@@ -5,6 +5,7 @@ import {
 } from '../../components/survey/RenderFields'
 
 function TamizajeGroupedResponses({ responses }: { responses: any[] }) {
+  const correos = responses.map((r) => r.correoElectronico).filter(Boolean)
   const programas = responses.map((r) => r.programa).filter(Boolean)
   const ciclos = responses.map((r) => r.ciclo).filter(Boolean)
   const secciones = responses.map((r) => r.seccion).filter(Boolean)
@@ -39,6 +40,7 @@ function TamizajeGroupedResponses({ responses }: { responses: any[] }) {
         Información del Programa
       </h1>
       <div className='space-y-6'>
+        {renderTextField('Correo electrónico', correos)}
         {renderTextField('Programa actual', programas)}
         {renderMultipleField('Ciclo', ciclos)}
         {renderMultipleField('Sección', secciones)}
@@ -61,7 +63,7 @@ function TamizajeGroupedResponses({ responses }: { responses: any[] }) {
         {renderNumberField('¿Cuál es tu peso actual?', pesos)}
         {renderNumberField('¿Cuál es tu estatura actual? (cm)', estaturas)}
         {renderMultipleField(
-          'Realiza usted alguna actividad física?',
+          '¿Realiza usted alguna actividad física?',
           actividad,
         )}
         {renderMultipleField(

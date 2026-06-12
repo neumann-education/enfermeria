@@ -20,7 +20,6 @@ import Loader from './Loader'
 import LoginPage from './LoginPage'
 import NotFound from './NotFound'
 import ProtectedRoute from './ProtectedRoute'
-import ReportsPage from './ReportsPage'
 import SurveyDatosClinicos from './Surveys/DatosClinicos/SurveyDatosClinicos'
 import SurveyDetailDatosClinicos from './Surveys/DatosClinicos/SurveyDetailDatosClinicos'
 import SurveysDatosClinicosList from './Surveys/DatosClinicos/SurveysDatosClinicosList'
@@ -34,6 +33,8 @@ import SurveysTamizajeSaludList from './Surveys/Tamizaje/SurveysTamizajeSaludLis
 import SurveyTamizajeSalud from './Surveys/Tamizaje/SurveyTamizajeSalud'
 import UserCreate from './UserCreate'
 import UserDetail from './UserDetail'
+import UserEdit from './UserEdit'
+import ReportsPage from './ReportsPage'
 
 function AppContent() {
   const { isLoggedIn, isLoading } = useAuth()
@@ -101,6 +102,14 @@ function AppContent() {
         element={
           <ProtectedRoute>
             <UserDetail />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path='/user/:id/edit'
+        element={
+          <ProtectedRoute>
+            <UserEdit />
           </ProtectedRoute>
         }
       />

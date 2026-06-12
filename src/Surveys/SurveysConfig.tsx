@@ -8,12 +8,13 @@ import {
   updateSurveyConfigById,
   deleteSurveyConfigById,
 } from '../services/surveyService'
+import { DEFAULT_ACADEMIC_PERIOD } from '../constants/academicPeriod'
 
 function SurveysConfig() {
   const [configs, setConfigs] = useState<SurveyConfig[]>([])
   const [newConfig, setNewConfig] = useState({
     type: 'DatosClinicos' as SurveyType,
-    period: '',
+    period: DEFAULT_ACADEMIC_PERIOD,
     isOpen: true,
   })
 
@@ -28,7 +29,11 @@ function SurveysConfig() {
     if (!newConfig.period) return
     const config = await createSurveyConfig(newConfig)
     setConfigs((prev) => [...prev, config])
-    setNewConfig({ type: 'DatosClinicos', period: '', isOpen: true })
+    setNewConfig({
+      type: 'DatosClinicos',
+      period: DEFAULT_ACADEMIC_PERIOD,
+      isOpen: true,
+    })
   }
 
   const handleToggle = async (id: string) => {
@@ -78,7 +83,7 @@ function SurveysConfig() {
             </select>
             <input
               type='text'
-              placeholder='Período (ej: 2026 - I)'
+              placeholder={DEFAULT_ACADEMIC_PERIOD}
               value={newConfig.period}
               onChange={(e) =>
                 setNewConfig({ ...newConfig, period: e.target.value })
